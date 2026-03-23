@@ -1521,6 +1521,16 @@ app.add_middleware(
 )
 
 
+# MPRA Zero-Copy: Cross-Origin Isolation headers for SharedArrayBuffer
+@app.middleware("http")
+async def add_coi_headers(request: Request, call_next):
+    response = await call_next(request)
+    # Required for SharedArrayBuffer support
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
+    return response
+
+
 app.mount("/ws", socket_app)
 
 
