@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import { toast } from 'svelte-sonner';
 	import { onMount, getContext } from 'svelte';
 
@@ -15,12 +15,12 @@
 
 	const i18n = getContext('i18n');
 
-	let func = null;
+	let func: any = null;
 
-	const saveHandler = async (data) => {
+	const saveHandler = async (data: any) => {
 		console.log(data);
 
-		const manifest = extractFrontmatter(data.content);
+		const manifest: any = extractFrontmatter(data.content);
 		if (compareVersion(manifest?.required_open_webui_version ?? '0.0.0', WEBUI_VERSION)) {
 			console.log('Version is lower than required');
 			toast.error(
@@ -51,7 +51,9 @@
 			models.set(
 				await getModels(
 					localStorage.token,
-					$config?.features?.enable_direct_connections && ($settings?.directConnections ?? null),
+					$config?.features?.enable_direct_connections
+						? ($settings?.directConnections ?? null)
+						: null,
 					false,
 					true
 				)

@@ -29,15 +29,15 @@
 
 	export let saveHandler: Function;
 
-	let updateAvailable = null;
+	let updateAvailable: boolean | null = null;
 	let version = {
 		current: '',
 		latest: ''
 	};
 
-	let adminConfig = null;
+	let adminConfig: any | null = null;
 	let webhookUrl = '';
-	let groups = [];
+	let groups: any[] = [];
 
 	let banners: Banner[] = [];
 
@@ -60,12 +60,14 @@
 
 	const checkForVersionUpdates = async () => {
 		updateAvailable = null;
-		version = await getVersionUpdates(localStorage.token).catch((error) => {
+		const res: any = await getVersionUpdates(localStorage.token).catch((error) => {
 			return {
 				current: WEBUI_VERSION,
 				latest: WEBUI_VERSION
 			};
 		});
+
+		version = res;
 
 		console.info(version);
 

@@ -1,6 +1,7 @@
-<script>
+<script lang="ts">
 	import { onDestroy, onMount, tick, getContext } from 'svelte';
-	const i18n = getContext('i18n');
+	import type { Writable } from 'svelte/store';
+	const i18n = getContext<Writable<{ t: (k: string, p?: Record<string, any>) => string }>>('i18n');
 
 	import Markdown from './Markdown.svelte';
 	import {
@@ -14,18 +15,20 @@
 	} from '$lib/stores';
 	import FloatingButtons from '../ContentRenderer/FloatingButtons.svelte';
 	import { createMessagesList } from '$lib/utils';
+	import type { ChatHistory, MessageSource } from '$lib/types/chat';
+	import type { Model } from '$lib/types/models';
 
-	export let id;
-	export let content;
+	export let id: string;
+	export let content: string;
 
-	export let history;
-	export let messageId;
+	export let history: ChatHistory;
+	export let messageId: string;
 
-	export let selectedModels = [];
+	export let selectedModels: string[] = [];
 
 	export let done = true;
-	export let model = null;
-	export let sources = null;
+	export let model: Model | null = null;
+	export let sources: MessageSource[] | null = null;
 
 	export let save = false;
 	export let preview = false;
@@ -34,19 +37,19 @@
 	export let editCodeBlock = true;
 	export let topPadding = false;
 
-	export let onSave = (e) => {};
-	export let onSourceClick = (e) => {};
-	export let onTaskClick = (e) => {};
-	export let onAddMessages = (e) => {};
+	export let onSave: (e: any) => void = (e) => {};
+	export let onSourceClick: (id: string) => void = (id) => {};
+	export let onTaskClick: (e: any) => void = (e) => {};
+	export let onAddMessages: (e: any) => void = (e) => {};
 
-	let contentContainerElement;
-	let floatingButtonsElement;
+	let contentContainerElement: HTMLDivElement;
+	let floatingButtonsElement: any;
 
-	let sourceIds = [];
+	let sourceIds: string[] = [];
 	$: getSourceIds(sources);
 
-	const getSourceIds = (sources) => {
-		const result = [];
+	const getSourceIds = (sources: MessageSource[] | null) => {
+		const result: string[] = [];
 		for (const source of sources ?? []) {
 			for (let index = 0; index < (source.document ?? []).length; index++) {
 				if (model?.info?.meta?.capabilities?.citations == false) {
@@ -67,12 +70,11 @@
 		sourceIds = [...new Set(result)];
 	};
 
-	const updateButtonPosition = (event) => {
+	const updateButtonPosition = (event: MouseEvent) => {
 		const buttonsContainerElement = document.getElementById(`floating-buttons-${id}`);
-		if (
-			!contentContainerElement?.contains(event.target) &&
-			!buttonsContainerElement?.contains(event.target)
-		) {
+		const target = event.target as Node | null;
+
+		if (!contentContainerElement?.contains(target) && !buttonsContainerElement?.contains(target)) {
 			closeFloatingButtons();
 			return;
 		}
@@ -80,11 +82,11 @@
 		setTimeout(async () => {
 			await tick();
 
-			if (!contentContainerElement?.contains(event.target)) return;
+			if (!contentContainerElement?.contains(target)) return;
 
 			let selection = window.getSelection();
 
-			if (selection.toString().trim().length > 0) {
+			if (selection && selection.toString().trim().length > 0) {
 				const range = selection.getRangeAt(0);
 				const rect = range.getBoundingClientRect();
 
@@ -134,7 +136,7 @@
 		}
 	};
 
-	const keydownHandler = (e) => {
+	const keydownHandler = (e: KeyboardEvent) => {
 		if (e.key === 'Escape') {
 			closeFloatingButtons();
 		}
@@ -201,7 +203,7 @@
 		{id}
 		{messageId}
 		actions={$settings?.floatingActionButtons ?? []}
-		model={(selectedModels ?? []).includes(model?.id)
+		model={(selectedModels ?? []).includes(model?.id ?? '')
 			? model?.id
 			: (selectedModels ?? []).length > 0
 				? selectedModels.at(0)

@@ -12,26 +12,28 @@
 	import { v4 as uuidv4 } from 'uuid';
 	import { WEBUI_API_BASE_URL } from '$lib/constants';
 
-	export let selectedItems = [];
-	const i18n = getContext('i18n');
+	import type { Writable } from 'svelte/store';
 
-	let loaded = false;
+	export let selectedItems: any[] = [];
+	const i18n = getContext<Writable<{ t: (k: string, p?: Record<string, any>) => string }>>('i18n');
 
-	let filesInputElement = null;
-	let inputFiles = null;
+	let loaded: boolean = false;
+
+	let filesInputElement: HTMLInputElement | null = null;
+	let inputFiles: FileList | null = null;
 
 	$: if (selectedItems === null) {
 		selectedItems = [];
 	}
 
-	const uploadFileHandler = async (file, fullContext: boolean = false) => {
+	const uploadFileHandler = async (file: File, fullContext: boolean = false): Promise<any> => {
 		if ($user?.role !== 'admin' && !($user?.permissions?.chat?.file_upload ?? true)) {
 			toast.error($i18n.t('You do not have permission to upload files.'));
 			return null;
 		}
 
 		const tempItemId = uuidv4();
-		const fileItem = {
+		const fileItem: any = {
 			type: 'file',
 			file: '',
 			id: null,
@@ -96,7 +98,7 @@
 		}
 	};
 
-	const inputFilesHandler = async (inputFiles) => {
+	const inputFilesHandler = async (inputFiles: File[]): Promise<void> => {
 		console.log('Input files handler called with:', inputFiles);
 
 		inputFiles.forEach(async (file) => {
@@ -150,7 +152,9 @@
 			toast.error($i18n.t(`File not found.`));
 		}
 
-		filesInputElement.value = '';
+		if (filesInputElement) {
+			filesInputElement.value = '';
+		}
 	}}
 />
 
@@ -170,13 +174,13 @@
 			<div class=" flex flex-wrap items-center gap-2 mb-2.5">
 				{#each selectedItems as file, fileIdx}
 					<FileItem
-						{file}
 						small={true}
 						item={file}
 						name={file.name}
 						modal={true}
 						edit={true}
 						loading={file.status === 'uploading'}
+						size={file.size}
 						type={file?.legacy
 							? `Legacy${file.type ? ` ${file.type}` : ''}`
 							: (file?.type ?? 'collection')}
@@ -217,7 +221,7 @@
 						class=" px-3.5 py-1.5 font-medium hover:bg-black/5 dark:hover:bg-white/5 outline outline-1 outline-gray-100 dark:outline-gray-850 rounded-3xl"
 						type="button"
 						on:click={() => {
-							filesInputElement.click();
+							filesInputElement?.click();
 						}}>{$i18n.t('Upload Files')}</button
 					>
 				{/if}

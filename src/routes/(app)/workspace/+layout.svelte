@@ -37,6 +37,34 @@
 				goto('/');
 			} else if ($page.url.pathname.includes('/skills') && !$user?.permissions?.workspace?.skills) {
 				goto('/');
+			} else if ($page.url.pathname.includes('/gateways') && $user?.role !== 'admin') {
+				goto('/');
+			} else if ($page.url.pathname.includes('/sandboxes') && $user?.role !== 'admin') {
+				goto('/');
+			} else if ($page.url.pathname.includes('/providers') && $user?.role !== 'admin') {
+				goto('/');
+			} else if (
+				$page.url.pathname.includes('/memory') &&
+				$user?.role !== 'admin' &&
+				!$user?.permissions?.workspace?.knowledge
+			) {
+				goto('/');
+			} else if ($page.url.pathname.includes('/hooks') && $user?.role !== 'admin') {
+				goto('/');
+			}
+			// ===== NEW OPENCLAW TABS (T032-T036) =====
+			else if ($page.url.pathname.includes('/agents') && $user?.role !== 'admin') {
+				goto('/');
+			} else if ($page.url.pathname.includes('/commands') && $user?.role !== 'admin') {
+				goto('/');
+			} else if ($page.url.pathname.includes('/pipelines') && $user?.role !== 'admin') {
+				goto('/');
+			} else if ($page.url.pathname.includes('/orchestration') && $user?.role !== 'admin') {
+				goto('/');
+			} else if ($page.url.pathname.includes('/channels') && $user?.role !== 'admin') {
+				goto('/');
+			} else if ($page.url.pathname.includes('/openclaw-config') && $user?.role !== 'admin') {
+				goto('/');
 			}
 		}
 
@@ -91,7 +119,7 @@
 								class="min-w-fit p-1.5 {$page.url.pathname.includes('/workspace/models')
 									? ''
 									: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'} transition select-none"
-								href="/workspace/models">{$i18n.t('Models')}</a
+								href="/workspace/models">{$i18n.t('OpenClaw')}</a
 							>
 						{/if}
 
@@ -142,6 +170,133 @@
 								href="/workspace/tools"
 							>
 								{$i18n.t('Tools')}
+							</a>
+						{/if}
+
+						{#if $user?.role === 'admin'}
+							<a
+								draggable="false"
+								aria-current={$page.url.pathname.includes('/workspace/gateways') ? 'page' : null}
+								class="min-w-fit p-1.5 {$page.url.pathname.includes('/workspace/gateways')
+									? ''
+									: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'} transition select-none"
+								href="/workspace/gateways"
+							>
+								{$i18n.t('Gateways')}
+							</a>
+
+							<a
+								draggable="false"
+								aria-current={$page.url.pathname.includes('/workspace/sandboxes') ? 'page' : null}
+								class="min-w-fit p-1.5 {$page.url.pathname.includes('/workspace/sandboxes')
+									? ''
+									: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'} transition select-none"
+								href="/workspace/sandboxes"
+							>
+								{$i18n.t('Sandboxes')}
+							</a>
+
+							<a
+								draggable="false"
+								aria-current={$page.url.pathname.includes('/workspace/providers') ? 'page' : null}
+								class="min-w-fit p-1.5 {$page.url.pathname.includes('/workspace/providers')
+									? ''
+									: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'} transition select-none"
+								href="/workspace/providers"
+							>
+								{$i18n.t('Providers')}
+							</a>
+
+							<a
+								draggable="false"
+								aria-current={$page.url.pathname.includes('/workspace/memory') ? 'page' : null}
+								class="min-w-fit p-1.5 {$page.url.pathname.includes('/workspace/memory')
+									? ''
+									: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'} transition select-none"
+								href="/workspace/memory"
+							>
+								{$i18n.t('Memory')}
+							</a>
+
+							<a
+								draggable="false"
+								aria-current={$page.url.pathname.includes('/workspace/hooks') ? 'page' : null}
+								class="min-w-fit p-1.5 {$page.url.pathname.includes('/workspace/hooks')
+									? ''
+									: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'} transition select-none"
+								href="/workspace/hooks"
+							>
+								{$i18n.t('Hooks')}
+							</a>
+
+							<!-- ===== OPENCLAW TABS (T032-T036) ===== -->
+							<span class="text-gray-400 dark:text-gray-600 px-1">|</span>
+
+							<a
+								draggable="false"
+								aria-current={$page.url.pathname.includes('/workspace/agents') ? 'page' : null}
+								class="min-w-fit p-1.5 {$page.url.pathname.includes('/workspace/agents')
+									? ''
+									: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'} transition select-none"
+								href="/workspace/agents"
+							>
+								{$i18n.t('Agents')}
+							</a>
+
+							<a
+								draggable="false"
+								aria-current={$page.url.pathname.includes('/workspace/commands') ? 'page' : null}
+								class="min-w-fit p-1.5 {$page.url.pathname.includes('/workspace/commands')
+									? ''
+									: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'} transition select-none"
+								href="/workspace/commands"
+							>
+								{$i18n.t('Commands')}
+							</a>
+
+							<a
+								draggable="false"
+								aria-current={$page.url.pathname.includes('/workspace/pipelines') ? 'page' : null}
+								class="min-w-fit p-1.5 {$page.url.pathname.includes('/workspace/pipelines')
+									? ''
+									: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'} transition select-none"
+								href="/workspace/pipelines"
+							>
+								{$i18n.t('Pipelines')}
+							</a>
+
+							<a
+								draggable="false"
+								aria-current={$page.url.pathname.includes('/workspace/orchestration') ? 'page' : null}
+								class="min-w-fit p-1.5 {$page.url.pathname.includes('/workspace/orchestration')
+									? ''
+									: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'} transition select-none"
+								href="/workspace/orchestration"
+							>
+								{$i18n.t('Orchestration')}
+							</a>
+
+							<a
+								draggable="false"
+								aria-current={$page.url.pathname.includes('/workspace/channels') ? 'page' : null}
+								class="min-w-fit p-1.5 {$page.url.pathname.includes('/workspace/channels')
+									? ''
+									: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'} transition select-none"
+								href="/workspace/channels"
+							>
+								{$i18n.t('Channels')}
+							</a>
+
+							<a
+								draggable="false"
+								aria-current={$page.url.pathname.includes('/workspace/openclaw-config') ? 'page' : null}
+								class="min-w-fit p-1.5 {$page.url.pathname.includes('/workspace/openclaw-config')
+									? ''
+									: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'} transition select-none"
+								href="/workspace/openclaw-config"
+								title="openclaw.json — tek API hattı"
+							>
+								openclaw.json
 							</a>
 						{/if}
 					</div>

@@ -8,14 +8,25 @@
 	import Check from '../icons/Check.svelte';
 	import Search from '../icons/Search.svelte';
 
+	import { getContext } from 'svelte';
+	const i18n = getContext('i18n');
+
 	const dispatch = createEventDispatcher();
 
 	export let value = '';
-	export let placeholder = $i18n.t('Select a model');
+	export let placeholder = '';
 	export let searchEnabled = true;
-	export let searchPlaceholder = $i18n.t('Search a model');
+	export let searchPlaceholder = '';
 
-	export let items = [
+	if (placeholder === '') {
+		placeholder = $i18n.t('Select a model');
+	}
+
+	if (searchPlaceholder === '') {
+		searchPlaceholder = $i18n.t('Search a model');
+	}
+
+	export let items: { value: string; label: string }[] = [
 		{ value: 'mango', label: 'Mango' },
 		{ value: 'watermelon', label: 'Watermelon' },
 		{ value: 'apple', label: 'Apple' },
@@ -58,9 +69,11 @@
 					<Search className="size-4" strokeWidth="2.5" />
 
 					<input
+						id="selector-search"
 						bind:value={searchValue}
 						class="w-full text-sm bg-transparent outline-hidden"
 						placeholder={searchPlaceholder}
+						aria-label={searchPlaceholder}
 					/>
 				</div>
 

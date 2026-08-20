@@ -28,13 +28,13 @@
 	import Spinner from '$lib/components/common/Spinner.svelte';
 
 	let page = 1;
-	let items = null;
-	let total = null;
+	let items: any[] | null = null;
+	let total: number | null = null;
 
 	let orderBy: string = 'updated_at';
 	let direction: 'asc' | 'desc' = 'desc';
 
-	const setSortKey = (key) => {
+	const setSortKey = (key: string) => {
 		if (orderBy === key) {
 			direction = direction === 'asc' ? 'desc' : 'asc';
 		} else {
@@ -44,9 +44,9 @@
 	};
 
 	let showFeedbackModal = false;
-	let selectedFeedback = null;
+	let selectedFeedback: any | null = null;
 
-	const openFeedbackModal = (feedback) => {
+	const openFeedbackModal = (feedback: any) => {
 		showFeedbackModal = true;
 		selectedFeedback = feedback;
 	};
@@ -108,9 +108,10 @@
 
 		const url = 'https://openwebui.com';
 		const tab = await window.open(`${url}/leaderboard`, '_blank');
+		if (!tab) return;
 
 		// Define the event handler function
-		const messageHandler = (event) => {
+		const messageHandler = (event: MessageEvent) => {
 			if (event.origin !== url) return;
 			if (event.data === 'loaded') {
 				tab.postMessage(JSON.stringify(feedbacksToShare), '*');

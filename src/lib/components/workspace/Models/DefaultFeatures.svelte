@@ -4,9 +4,10 @@
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import { marked } from 'marked';
 
-	const i18n = getContext('i18n');
+	import type { Writable } from 'svelte/store';
+	const i18n = getContext<Writable<{ t: (k: string, p?: Record<string, any>) => string }>>('i18n');
 
-	const featureLabels = {
+	const featureLabels: Record<string, { label: string; description: string }> = {
 		web_search: {
 			label: $i18n.t('Web Search'),
 			description: $i18n.t('Model can search the web for information')
@@ -21,8 +22,8 @@
 		}
 	};
 
-	export let availableFeatures = ['web_search', 'image_generation', 'code_interpreter'];
-	export let featureIds = [];
+	export let availableFeatures: string[] = ['web_search', 'image_generation', 'code_interpreter'];
+	export let featureIds: string[] = [];
 </script>
 
 <div>

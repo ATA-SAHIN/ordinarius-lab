@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
 	import { getContext, onMount } from 'svelte';
+	import type { Group } from '$lib/types';
 	const i18n = getContext('i18n');
 
 	import Spinner from '$lib/components/common/Spinner.svelte';
@@ -14,14 +15,19 @@
 	import ConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
 	import XMark from '$lib/components/icons/XMark.svelte';
 
-	export let onSubmit: Function = () => {};
-	export let onDelete: Function = () => {};
+	export let onSubmit: (group: {
+		name: string;
+		description: string;
+		data: any;
+		permissions: any;
+	}) => Promise<void> = async () => {};
+	export let onDelete: () => void = () => {};
 
 	export let show = false;
 	export let edit = false;
 
-	export let group = null;
-	export let defaultPermissions = {};
+	export let group: Group | null = null;
+	export let defaultPermissions: Record<string, any> = {};
 
 	export let custom = true;
 
@@ -35,9 +41,9 @@
 
 	export let name = '';
 	export let description = '';
-	export let data = {};
+	export let data: Record<string, any> = {};
 
-	export let permissions = DEFAULT_PERMISSIONS;
+	export let permissions: Record<string, any> = DEFAULT_PERMISSIONS;
 
 	const submitHandler = async () => {
 		loading = true;
@@ -57,9 +63,9 @@
 
 	const init = () => {
 		if (group) {
-			name = group.name;
-			description = group.description;
-			const loadedPermissions = group?.permissions ?? {};
+			name = group.name ?? '';
+			description = group.description ?? '';
+			const loadedPermissions: Record<string, any> = group?.permissions ?? {};
 			// Create fresh object from defaults, then overlay loaded values
 			permissions = {
 				workspace: { ...DEFAULT_PERMISSIONS.workspace, ...loadedPermissions.workspace },
@@ -212,7 +218,7 @@
 								{:else if selectedTab == 'permissions'}
 									<Permissions bind:permissions {defaultPermissions} />
 								{:else if selectedTab == 'users'}
-									<Users bind:userCount groupId={group?.id} />
+									<Users bind:userCount groupId={group?.id ?? ''} />
 								{/if}
 							</div>
 

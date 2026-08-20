@@ -1,5 +1,5 @@
-<script>
-	import Knowledge from '$lib/components/workspace/Knowledge.svelte';
+<script lang="ts">
+	import OpenClawMemoryEditorPage from '$lib/components/workspace/openclaw/OpenClawMemoryEditorPage.svelte';
 </script>
 
-<Knowledge />
+<OpenClawMemoryEditorPage titleKey="Knowledge" />

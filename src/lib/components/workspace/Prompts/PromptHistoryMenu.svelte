@@ -2,6 +2,7 @@
 	import { DropdownMenu } from 'bits-ui';
 	import { flyAndScale } from '$lib/utils/transitions';
 	import { getContext, createEventDispatcher } from 'svelte';
+	import type { Writable } from 'svelte/store';
 
 	import Dropdown from '$lib/components/common/Dropdown.svelte';
 	import ConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
@@ -9,11 +10,11 @@
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import EllipsisHorizontal from '$lib/components/icons/EllipsisHorizontal.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<{ t: (k: string, p?: Record<string, any>) => string }>>('i18n');
 
 	export let isProduction = false;
-	export let onDelete: Function;
-	export let onClose: Function;
+	export let onDelete: () => void = () => {};
+	export let onClose: () => void = () => {};
 
 	let show = false;
 	let showDeleteConfirmDialog = false;

@@ -4,9 +4,11 @@
 	const { saveAs } = fileSaver;
 
 	import { onMount, getContext, tick, onDestroy } from 'svelte';
-	const i18n = getContext('i18n');
+	import type { Writable } from 'svelte/store';
+	const i18n = getContext<Writable<{ t: (k: string, p?: Record<string, any>) => string }>>('i18n');
 
 	import { WEBUI_NAME, user, skills as _skills } from '$lib/stores';
+	import type { Skill } from '$lib/types';
 	import { goto } from '$app/navigation';
 	import {
 		getSkills,
@@ -38,17 +40,17 @@
 	let shiftKey = false;
 	let loaded = false;
 
-	let importFiles;
-	let importInputElement: HTMLInputElement;
+	let importFiles: FileList | undefined;
+	let importInputElement: HTMLInputElement | undefined;
 
 	let query = '';
 	let searchDebounceTimer: ReturnType<typeof setTimeout>;
 
-	let selectedSkill = null;
+	let selectedSkill: Skill | null = null;
 	let showDeleteConfirm = false;
 
-	let filteredItems = null;
-	let total = null;
+	let filteredItems: Skill[] | null = null;
+	let total: number | null = null;
 	let loading = false;
 
 	let tagsContainerElement: HTMLDivElement;
@@ -93,7 +95,7 @@
 		loadSkillItems();
 	}
 
-	const cloneHandler = async (skill) => {
+	const cloneHandler = async (skill: Skill) => {
 		const _skill = await getSkillById(localStorage.token, skill.id).catch((error) => {
 			toast.error(`${error}`);
 			return null;
@@ -109,7 +111,7 @@
 		}
 	};
 
-	const exportHandler = async (skill) => {
+	const exportHandler = async (skill: Skill) => {
 		const _skill = await getSkillById(localStorage.token, skill.id).catch((error) => {
 			toast.error(`${error}`);
 			return null;
@@ -123,7 +125,7 @@
 		}
 	};
 
-	const deleteHandler = async (skill) => {
+	const deleteHandler = async (skill: Skill) => {
 		const res = await deleteSkillById(localStorage.token, skill.id).catch((error) => {
 			toast.error(`${error}`);
 			return null;
@@ -135,20 +137,22 @@
 
 		page = 1;
 		loadSkillItems();
-		await _skills.set(await getSkills(localStorage.token));
+		const allSkills = await getSkills(localStorage.token);
+		if (allSkills) {
+			_skills.set(allSkills);
+		}
 	};
 
-	onMount(async () => {
+	onMount(() => {
 		viewOption = localStorage?.workspaceViewOption || '';
-		loaded = true;
 
-		const onKeyDown = (event) => {
+		const onKeyDown = (event: KeyboardEvent) => {
 			if (event.key === 'Shift') {
 				shiftKey = true;
 			}
 		};
 
-		const onKeyUp = (event) => {
+		const onKeyUp = (event: KeyboardEvent) => {
 			if (event.key === 'Shift') {
 				shiftKey = false;
 			}
@@ -160,13 +164,15 @@
 
 		window.addEventListener('keydown', onKeyDown);
 		window.addEventListener('keyup', onKeyUp);
-		window.addEventListener('blur-sm', onBlur);
+		window.addEventListener('blur', onBlur);
+
+		loaded = true;
 
 		return () => {
 			clearTimeout(searchDebounceTimer);
 			window.removeEventListener('keydown', onKeyDown);
 			window.removeEventListener('keyup', onKeyUp);
-			window.removeEventListener('blur-sm', onBlur);
+			window.removeEventListener('blur', onBlur);
 		};
 	});
 
@@ -209,7 +215,7 @@
 							if (ext === 'json') {
 								// JSON import: create skills via API
 								const reader = new FileReader();
-								reader.onload = async (event) => {
+								reader.onload = async (event: ProgressEvent<FileReader>) => {
 									try {
 										const content = event.target?.result;
 										if (typeof content !== 'string') return;
@@ -226,7 +232,10 @@
 										toast.success($i18n.t('Skill imported successfully'));
 										page = 1;
 										loadSkillItems();
-										_skills.set(await getSkills(localStorage.token));
+										const allSkills = await getSkills(localStorage.token);
+										if (allSkills) {
+											_skills.set(allSkills);
+										}
 									} catch (e) {
 										toast.error($i18n.t('Invalid JSON file'));
 									}
@@ -235,10 +244,10 @@
 							} else {
 								// Markdown import: parse frontmatter and open in editor
 								const reader = new FileReader();
-								reader.onload = (event) => {
+								reader.onload = (event: ProgressEvent<FileReader>) => {
 									const mdContent = event.target?.result;
 									if (typeof mdContent === 'string') {
-										const fm = parseFrontmatter(mdContent);
+										const fm = parseFrontmatter(mdContent) as { [key: string]: any };
 										const fileName = file.name.replace(/\.md$/, '');
 										const rawName = fm.name || fileName;
 										const displayName = formatSkillName(rawName);
@@ -256,7 +265,9 @@
 								reader.readAsText(file);
 							}
 
-							importInputElement.value = '';
+							if (importInputElement) {
+								importInputElement.value = '';
+							}
 						}
 					}}
 				/>
@@ -265,7 +276,7 @@
 					<button
 						class="flex text-xs items-center space-x-1 px-3 py-1.5 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-gray-850 dark:hover:bg-gray-800 dark:text-gray-200 transition"
 						on:click={() => {
-							importInputElement.click();
+							importInputElement?.click();
 						}}
 					>
 						<div class=" self-center font-medium line-clamp-1">
@@ -506,7 +517,7 @@
 				{/each}
 			</div>
 
-			{#if total > 30}
+			{#if total && total > 30}
 				<div class="flex justify-center mt-4 mb-2">
 					<Pagination bind:page count={total} perPage={30} />
 				</div>
@@ -528,11 +539,13 @@
 		bind:show={showDeleteConfirm}
 		title={$i18n.t('Delete skill?')}
 		on:confirm={() => {
-			deleteHandler(selectedSkill);
+			if (selectedSkill) {
+				deleteHandler(selectedSkill);
+			}
 		}}
 	>
 		<div class=" text-sm text-gray-500 truncate">
-			{$i18n.t('This will delete')} <span class="  font-medium">{selectedSkill.name}</span>.
+			{$i18n.t('This will delete')} <span class="  font-medium">{selectedSkill?.name}</span>.
 		</div>
 	</DeleteConfirmDialog>
 {:else}

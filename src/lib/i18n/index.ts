@@ -1,10 +1,15 @@
 import i18next from 'i18next';
 import resourcesToBackend from 'i18next-resources-to-backend';
 import LanguageDetector from 'i18next-browser-languagedetector';
-import type { i18n as i18nType } from 'i18next';
-import { writable } from 'svelte/store';
+import type { i18n as i18nType, TFunction } from 'i18next';
+import { writable, type Writable } from 'svelte/store';
 
-const createI18nStore = (i18n: i18nType) => {
+// Export the i18n store type for use with getContext
+export type I18nStore = Writable<i18nType> & {
+	t: TFunction;
+};
+
+const createI18nStore = (i18n: i18nType): Writable<i18nType> => {
 	const i18nWritable = writable(i18n);
 
 	i18n.on('initialized', () => {

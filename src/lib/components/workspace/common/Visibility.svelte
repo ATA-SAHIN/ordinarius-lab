@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { getContext, onMount } from 'svelte';
+	import type { Writable } from 'svelte/store';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<{ t: (k: string) => string }>>('i18n');
 
-	export let onChange: Function = () => {};
-	export let state = 'private';
+	export let onChange: (state: string) => void = () => {};
+	export let state: string = 'private';
 </script>
 
 <div class=" rounded-lg flex flex-col gap-2">
@@ -54,7 +55,8 @@
 					class="outline-hidden bg-transparent text-sm font-medium block w-fit pr-10 max-w-full placeholder-gray-400"
 					value={state === 'private' ? 'private' : 'public'}
 					on:change={(e) => {
-						if (e.target.value === 'public') {
+						const target = e.target as HTMLSelectElement;
+						if (target.value === 'public') {
 							state = 'public';
 						} else {
 							state = 'private';

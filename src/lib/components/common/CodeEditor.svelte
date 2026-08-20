@@ -27,8 +27,8 @@
 	export let boilerplate = '';
 	export let value = '';
 
-	export let onSave = () => {};
-	export let onChange = () => {};
+	export let onSave: () => void = () => {};
+	export let onChange: (value: string) => void = () => {};
 
 	let _value = '';
 
@@ -92,7 +92,7 @@
 		return await language?.load();
 	};
 
-	let pyodideWorkerInstance = null;
+	let pyodideWorkerInstance: Worker | null = null;
 
 	const getPyodideWorker = () => {
 		if (!pyodideWorkerInstance) {
@@ -104,10 +104,10 @@
 	// Generate unique IDs for requests
 	let _formatReqId = 0;
 
-	const formatPythonCodePyodide = (code) => {
+	const formatPythonCodePyodide = (code: string): Promise<{ code: string }> => {
 		return new Promise((resolve, reject) => {
 			const id = `format-${++_formatReqId}`;
-			let timeout;
+			let timeout: ReturnType<typeof setTimeout>;
 			const worker = getPyodideWorker();
 
 			const startTag = `--||CODE-START-${id}||--`;
@@ -122,7 +122,7 @@ print("${endTag}")
 
 			const packages = ['black'];
 
-			function handleMessage(event) {
+			function handleMessage(event: MessageEvent) {
 				const { id: eventId, stdout, stderr } = event.data;
 				if (eventId !== id) return; // Only handle our message
 				clearTimeout(timeout);
@@ -132,7 +132,7 @@ print("${endTag}")
 				if (stderr) {
 					reject(stderr);
 				} else {
-					function extractBetweenDelimiters(stdout, start, end) {
+					function extractBetweenDelimiters(stdout: string, start: string, end: string) {
 						console.log('stdout', stdout);
 						const startIdx = stdout.indexOf(start);
 						const endIdx = stdout.indexOf(end, startIdx + start.length);
@@ -146,11 +146,11 @@ print("${endTag}")
 						endTag
 					);
 
-					resolve({ code: formatted });
+					resolve({ code: formatted ?? '' });
 				}
 			}
 
-			function handleError(event) {
+			function handleError(event: ErrorEvent) {
 				clearTimeout(timeout);
 				worker.removeEventListener('message', handleMessage);
 				worker.removeEventListener('error', handleError);
@@ -176,11 +176,11 @@ print("${endTag}")
 		});
 	};
 
-	export const formatPythonCodeHandler = async () => {
+	export const formatPythonCodeHandler = async (): Promise<boolean> => {
 		if (codeEditor) {
 			const res = await (
 				$user?.role === 'admin'
-					? formatPythonCode(localStorage.token, _value)
+					? (formatPythonCode(localStorage.token, _value) as Promise<{ code: string } | null>)
 					: formatPythonCodePyodide(_value)
 			).catch((error) => {
 				toast.error(`${error}`);
@@ -248,7 +248,7 @@ print("${endTag}")
 				doc: _value,
 				extensions: extensions
 			}),
-			parent: document.getElementById(`code-textarea-${id}`)
+			parent: document.getElementById(`code-textarea-${id}`) || undefined
 		});
 
 		if (isDarkMode) {
@@ -265,14 +265,16 @@ print("${endTag}")
 
 					if (_isDarkMode !== isDarkMode) {
 						isDarkMode = _isDarkMode;
-						if (_isDarkMode) {
-							codeEditor.dispatch({
-								effects: editorTheme.reconfigure(oneDark)
-							});
-						} else {
-							codeEditor.dispatch({
-								effects: editorTheme.reconfigure()
-							});
+						if (codeEditor) {
+							if (_isDarkMode) {
+								codeEditor.dispatch({
+									effects: editorTheme.reconfigure(oneDark)
+								});
+							} else {
+								codeEditor.dispatch({
+									effects: editorTheme.reconfigure([])
+								});
+							}
 						}
 					}
 				}
@@ -284,7 +286,7 @@ print("${endTag}")
 			attributeFilter: ['class']
 		});
 
-		const keydownHandler = async (e) => {
+		const keydownHandler = async (e: KeyboardEvent) => {
 			if ((e.ctrlKey || e.metaKey) && e.key === 's') {
 				e.preventDefault();
 
@@ -318,4 +320,4 @@ print("${endTag}")
 	});
 </script>
 
-<div id="code-textarea-{id}" class="h-full w-full text-sm" />
+<div id="code-textarea-{id}" class="h-full w-full text-sm"></div>

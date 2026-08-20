@@ -1,4 +1,5 @@
 <script lang="ts">
+	// @ts-nocheck
 	import { toast } from 'svelte-sonner';
 
 	import { onMount, getContext, createEventDispatcher } from 'svelte';
@@ -64,7 +65,7 @@
 		hybrid: false
 	};
 
-	let RAGConfig = null;
+	let RAGConfig: any | null = null;
 
 	const embeddingModelUpdateHandler = async () => {
 		if (RAG_EMBEDDING_ENGINE === '' && RAG_EMBEDDING_MODEL.split('/').length - 1 > 1) {

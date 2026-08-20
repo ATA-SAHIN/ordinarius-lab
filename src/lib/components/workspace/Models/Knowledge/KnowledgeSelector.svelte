@@ -2,6 +2,7 @@
 	import dayjs from 'dayjs';
 	import { DropdownMenu } from 'bits-ui';
 	import { onMount, onDestroy, getContext, createEventDispatcher } from 'svelte';
+	import type { Writable } from 'svelte/store';
 	import { searchNotes } from '$lib/apis/notes';
 	import { searchKnowledgeBases, searchKnowledgeFiles } from '$lib/apis/knowledge';
 
@@ -17,30 +18,41 @@
 	import PageEdit from '$lib/components/icons/PageEdit.svelte';
 	import DocumentPage from '$lib/components/icons/DocumentPage.svelte';
 
-	const i18n = getContext('i18n');
+	interface KnowledgeItem {
+		id: string;
+		type: 'note' | 'collection' | 'file';
+		name: string;
+		description?: string;
+		[key: string]: any;
+	}
+
+	const i18n = getContext<Writable<{ t: (k: string) => string }>>('i18n');
 	const dispatch = createEventDispatcher();
 
-	export let onClose: Function = () => {};
+	export let onClose: () => void = () => {};
 
 	let show = false;
 
 	let query = '';
 	let searchDebounceTimer: ReturnType<typeof setTimeout>;
 
-	let noteItems = [];
-	let knowledgeItems = [];
-	let fileItems = [];
+	let noteItems: KnowledgeItem[] = [];
+	let knowledgeItems: KnowledgeItem[] = [];
+	let fileItems: KnowledgeItem[] = [];
 
-	let items = [];
+	let items: KnowledgeItem[] = [];
 
 	$: items = [...noteItems, ...knowledgeItems, ...fileItems];
 
-	$: if (query !== undefined) {
+	/** Debounce search without assigning the timer inside a `$:` block (avoids Svelte self-invalidation loops). */
+	function scheduleItemsFetch() {
 		clearTimeout(searchDebounceTimer);
 		searchDebounceTimer = setTimeout(() => {
 			getItems();
 		}, 300);
 	}
+
+	$: query, scheduleItemsFetch();
 
 	onDestroy(() => {
 		clearTimeout(searchDebounceTimer);
@@ -58,7 +70,7 @@
 		});
 
 		if (res) {
-			noteItems = res.items.map((note) => {
+			noteItems = res.items.map((note: any): KnowledgeItem => {
 				return {
 					...note,
 					type: 'note',
@@ -75,7 +87,7 @@
 		});
 
 		if (res) {
-			knowledgeItems = res.items.map((note) => {
+			knowledgeItems = res.items.map((note: any): KnowledgeItem => {
 				return {
 					...note,
 					type: 'collection'
@@ -90,7 +102,7 @@
 		});
 
 		if (res) {
-			fileItems = res.items.map((file) => {
+			fileItems = res.items.map((file: any): KnowledgeItem => {
 				return {
 					...file,
 					type: 'file',

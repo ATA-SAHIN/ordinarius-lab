@@ -4,9 +4,10 @@
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import { marked } from 'marked';
 
-	const i18n = getContext('i18n');
+	import type { Writable } from 'svelte/store';
+	const i18n = getContext<Writable<{ t: (k: string, p?: Record<string, any>) => string }>>('i18n');
 
-	const capabilityLabels = {
+	const capabilityLabels: Record<string, { label: string; description: string }> = {
 		vision: {
 			label: $i18n.t('Vision'),
 			description: $i18n.t('Model accepts image inputs')
@@ -53,18 +54,7 @@
 		}
 	};
 
-	export let capabilities: {
-		file_context?: boolean;
-		vision?: boolean;
-		file_upload?: boolean;
-		web_search?: boolean;
-		image_generation?: boolean;
-		code_interpreter?: boolean;
-		usage?: boolean;
-		citations?: boolean;
-		status_updates?: boolean;
-		builtin_tools?: boolean;
-	} = {};
+	export let capabilities: Record<string, any> = {};
 
 	// Hide file_context when file_upload is disabled
 	$: visibleCapabilities = Object.keys(capabilityLabels).filter((cap) => {

@@ -12,14 +12,16 @@
 	import Spinner from '$lib/components/common/Spinner.svelte';
 	import { updateSkillAccessGrants } from '$lib/apis/skills';
 	import { goto } from '$app/navigation';
+	import type { Skill, AccessGrant } from '$lib/types';
+	import type { Writable } from 'svelte/store';
 
-	export let onSubmit: Function;
+	export let onSubmit: (skill: any) => Promise<void>;
 	export let edit = false;
-	export let skill = null;
+	export let skill: Skill | null = null;
 	export let clone = false;
 	export let disabled = false;
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<{ t: (k: string, p?: Record<string, any>) => string }>>('i18n');
 
 	let loading = false;
 
@@ -28,7 +30,7 @@
 	let description = '';
 	let content = '';
 
-	let accessGrants = [];
+	let accessGrants: AccessGrant[] = [];
 	let showAccessControlModal = false;
 	let hasManualEdit = false;
 	let hasManualName = false;
@@ -37,7 +39,7 @@
 
 	// Auto-detect frontmatter and fill name/description in create mode
 	$: if (!edit && content) {
-		const fm = parseFrontmatter(content);
+		const fm = parseFrontmatter(content) as { [key: string]: any };
 		if (fm.name) {
 			isFrontmatterDetected = true;
 			if (!hasManualName) {
@@ -243,7 +245,7 @@
 									placeholder={$i18n.t('Enter skill instructions in markdown...')}
 									aria-label={$i18n.t('Skill Instructions')}
 									required
-								/>
+								></textarea>
 							{/if}
 						</div>
 					</div>

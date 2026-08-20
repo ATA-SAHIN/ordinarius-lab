@@ -37,6 +37,9 @@
 		removeAllDetails
 	} from '$lib/utils';
 	import { WEBUI_API_BASE_URL, WEBUI_BASE_URL } from '$lib/constants';
+	import type { ChatHistory, ChatMessage, MessageFile } from '$lib/types/chat';
+	import type { Model } from '$lib/types/models';
+	import type { User } from '$lib/types';
 
 	import Name from './Name.svelte';
 	import ProfileImage from './ProfileImage.svelte';
@@ -63,63 +66,12 @@
 	import StatusHistory from './ResponseMessage/StatusHistory.svelte';
 	import FullHeightIframe from '$lib/components/common/FullHeightIframe.svelte';
 
-	interface MessageType {
-		id: string;
-		model: string;
-		content: string;
-		files?: { type: string; url: string }[];
-		timestamp: number;
-		role: string;
-		statusHistory?: {
-			done: boolean;
-			action: string;
-			description: string;
-			urls?: string[];
-			query?: string;
-		}[];
-		status?: {
-			done: boolean;
-			action: string;
-			description: string;
-			urls?: string[];
-			query?: string;
-		};
-		done: boolean;
-		error?: boolean | { content: string };
-		sources?: string[];
-		code_executions?: {
-			uuid: string;
-			name: string;
-			code: string;
-			language?: string;
-			result?: {
-				error?: string;
-				output?: string;
-				files?: { name: string; url: string }[];
-			};
-		}[];
-		info?: {
-			openai?: boolean;
-			prompt_tokens?: number;
-			completion_tokens?: number;
-			total_tokens?: number;
-			eval_count?: number;
-			eval_duration?: number;
-			prompt_eval_count?: number;
-			prompt_eval_duration?: number;
-			total_duration?: number;
-			load_duration?: number;
-			usage?: unknown;
-		};
-		annotation?: { type: string; rating: number };
-	}
+	export let chatId: string = '';
+	export let history: ChatHistory;
+	export let messageId: string;
+	export let selectedModels: string[] = [];
 
-	export let chatId = '';
-	export let history;
-	export let messageId;
-	export let selectedModels = [];
-
-	let message: MessageType = structuredClone(history.messages[messageId]);
+	let message: ChatMessage = structuredClone(history.messages[messageId]);
 	$: if (history.messages) {
 		const source = history.messages[messageId];
 		if (source) {
@@ -134,39 +86,47 @@
 		}
 	}
 
-	export let siblings;
+	export let siblings: string[];
 
-	export let setInputText: Function = () => {};
-	export let gotoMessage: Function = () => {};
-	export let showPreviousMessage: Function;
-	export let showNextMessage: Function;
+	export let setInputText: (text: string) => void = () => {};
+	export let gotoMessage: (message: ChatMessage, index?: number) => void = () => {};
+	export let showPreviousMessage: (message: ChatMessage) => void;
+	export let showNextMessage: (message: ChatMessage) => void;
 
-	export let updateChat: Function;
-	export let editMessage: Function;
-	export let saveMessage: Function;
-	export let rateMessage: Function;
-	export let actionMessage: Function;
-	export let deleteMessage: Function;
+	export let updateChat: () => void;
+	export let editMessage: (
+		id: string,
+		data: { content: string; files?: any[] },
+		submit?: boolean
+	) => void;
+	export let saveMessage: (id: string, message: any) => void;
+	export let rateMessage: (id: string, rating: number) => void;
+	export let actionMessage: (id: string, message: ChatMessage) => void = () => {};
+	export let deleteMessage: (id: string) => void;
 
-	export let submitMessage: Function;
-	export let continueResponse: Function;
-	export let regenerateResponse: Function;
+	export let submitMessage: (parentId: string, content: string) => void;
+	export let continueResponse: () => void;
+	export let regenerateResponse: (message: ChatMessage, prompt?: string | null) => void;
 
-	export let addMessages: Function;
+	export let addMessages: (data: {
+		modelId: string;
+		parentId: string;
+		messages: ChatMessage[];
+	}) => void;
 
-	export let isLastMessage = true;
-	export let readOnly = false;
-	export let editCodeBlock = true;
-	export let topPadding = false;
+	export let isLastMessage: boolean = true;
+	export let readOnly: boolean = false;
+	export let editCodeBlock: boolean = true;
+	export let topPadding: boolean = false;
 
-	let citationsElement: HTMLDivElement;
+	let citationsElement: any;
 
 	let contentContainerElement: HTMLDivElement;
 	let buttonsContainerElement: HTMLDivElement;
 	let showDeleteConfirm = false;
 
-	let model = null;
-	$: model = $models.find((m) => m.id === message.model);
+	let model: Model | null = null;
+	$: model = ($models.find((m) => m.id === message.model) as Model) ?? null;
 
 	let edit = false;
 	let editedContent = '';
@@ -179,9 +139,9 @@
 
 	let loadingSpeech = false;
 
-	let showRateComment = false;
+	let showRateComment: boolean = false;
 
-	const copyToClipboard = async (text) => {
+	const copyToClipboard = async (text: string) => {
 		text = removeAllDetails(text);
 
 		if (($config?.ui?.response_watermark ?? '').trim() !== '') {
@@ -197,7 +157,7 @@
 	const stopAudio = () => {
 		try {
 			speechSynthesis.cancel();
-			$audioQueue.stop();
+			$audioQueue?.stop();
 		} catch {}
 
 		if (speaking) {
@@ -222,13 +182,13 @@
 				return model.info.meta.tts.voice;
 			}
 			// Fall back to user settings or config default
-			if ($settings?.audio?.tts?.defaultVoice === $config.audio.tts.voice) {
+			if ($settings?.audio?.tts?.defaultVoice === $config?.audio?.tts?.voice) {
 				return $settings?.audio?.tts?.voice ?? $config?.audio?.tts?.voice;
 			}
 			return $config?.audio?.tts?.voice;
 		};
 
-		if ($config.audio.tts.engine === '') {
+		if ($config?.audio?.tts?.engine === '') {
 			let voices = [];
 			const getVoicesLoop = setInterval(() => {
 				voices = speechSynthesis.getVoices();
@@ -260,12 +220,14 @@
 				}
 			}, 100);
 		} else {
-			$audioQueue.setId(`${message.id}`);
-			$audioQueue.setPlaybackRate($settings.audio?.tts?.playbackRate ?? 1);
-			$audioQueue.onStopped = () => {
-				speaking = false;
-				speakingIdx = undefined;
-			};
+			if ($audioQueue) {
+				$audioQueue.setId(`${message.id}`);
+				$audioQueue.setPlaybackRate($settings.audio?.tts?.playbackRate ?? 1);
+				$audioQueue.onStopped = () => {
+					speaking = false;
+					speakingIdx = undefined;
+				};
+			}
 
 			loadingSpeech = true;
 			const messageContentParts: string[] = getMessageContentParts(
@@ -286,15 +248,11 @@
 			console.debug('Prepared message content for TTS', messageContentParts, 'voice:', voiceId);
 
 			if ($settings.audio?.tts?.engine === 'browser-kokoro') {
-				if (!$TTSWorker) {
-					await TTSWorker.set(
-						new KokoroWorker({
-							dtype: $settings.audio?.tts?.engineConfig?.dtype ?? 'fp32'
-						})
-					);
+				TTSWorker.set(
+					new KokoroWorker(($settings.audio?.tts?.engineConfig as any)?.dtype ?? 'fp32')
+				);
 
-					await $TTSWorker.init();
-				}
+				await ($TTSWorker as any).init();
 
 				for (const [idx, sentence] of messageContentParts.entries()) {
 					const url = await $TTSWorker
@@ -310,7 +268,7 @@
 							loadingSpeech = false;
 						});
 
-					if (url && speaking) {
+					if (url && speaking && $audioQueue) {
 						$audioQueue.enqueue(url);
 						loadingSpeech = false;
 					}
@@ -327,7 +285,7 @@
 						}
 					);
 
-					if (res && speaking) {
+					if (res && speaking && $audioQueue) {
 						const blob = await res.blob();
 						const url = URL.createObjectURL(blob);
 
@@ -339,11 +297,11 @@
 		}
 	};
 
-	let preprocessedDetailsCache = [];
+	let preprocessedDetailsCache: string[] = [];
 
 	function preprocessForEditing(content: string): string {
 		// Replace <details>...</details> with unique ID placeholder
-		const detailsBlocks = [];
+		const detailsBlocks: string[] = [];
 		let i = 0;
 
 		content = content.replace(/<details[\s\S]*?<\/details>/gi, (match) => {
@@ -379,7 +337,8 @@
 		editTextAreaElement.style.height = '';
 		editTextAreaElement.style.height = `${editTextAreaElement.scrollHeight}px`;
 
-		if (messagesContainer) messagesContainer.scrollTop = savedScrollTop;
+		if (messagesContainer && savedScrollTop !== undefined)
+			messagesContainer.scrollTop = savedScrollTop;
 	};
 
 	const editMessageConfirmHandler = async () => {
@@ -411,7 +370,7 @@
 
 	let feedbackLoading = false;
 
-	const feedbackHandler = async (rating: number | null = null, details: object | null = null) => {
+	const feedbackHandler = async (rating: number | null = null, details: unknown | null = null) => {
 		feedbackLoading = true;
 		console.log('Feedback', rating, details);
 
@@ -433,22 +392,40 @@
 
 		const messages = createMessagesList(history, message.id);
 
-		let feedbackItem = {
+		let feedbackItem: {
+			type: string;
+			data: any;
+			meta: {
+				arena: boolean;
+				model_id: string;
+				message_id: string;
+				message_index: number;
+				chat_id: string;
+				base_models?: Record<string, string | null>;
+			};
+			snapshot: {
+				chat: any;
+			};
+		} = {
 			type: 'rating',
 			data: {
 				...(updatedMessage?.annotation ? updatedMessage.annotation : {}),
 				model_id: message?.selectedModelId ?? message.model,
-				...(history.messages[message.parentId].childrenIds.length > 1
+				...((history.messages[message.parentId as string]?.childrenIds?.length ?? 0) > 1
 					? {
-							sibling_model_ids: history.messages[message.parentId].childrenIds
+							sibling_model_ids: (history.messages[message.parentId as string].childrenIds ?? [])
 								.filter((id) => id !== message.id)
-								.map((id) => history.messages[id]?.selectedModelId ?? history.messages[id].model)
+								.map(
+									(id) =>
+										(history.messages[id] as ChatMessage)?.selectedModelId ??
+										(history.messages[id] as ChatMessage)?.model
+								)
 						}
 					: {})
 			},
 			meta: {
-				arena: message ? message.arena : false,
-				model_id: message.model,
+				arena: message ? (message.arena ?? false) : false,
+				model_id: message.model ?? '',
 				message_id: message.id,
 				message_index: messages.length,
 				chat_id: chatId
@@ -459,12 +436,12 @@
 		};
 
 		const baseModels = [
-			feedbackItem.data.model_id,
-			...(feedbackItem.data.sibling_model_ids ?? [])
+			(feedbackItem.data as any).model_id,
+			...((feedbackItem.data as any).sibling_model_ids ?? [])
 		].reduce((acc, modelId) => {
 			const model = $models.find((m) => m.id === modelId);
 			if (model) {
-				acc[model.id] = model?.info?.base_model_id ?? null;
+				acc[model.id] = (model?.info?.meta as any)?.base_model_id ?? null;
 			} else {
 				// Log or handle cases where corresponding model is not found
 				console.warn(`Model with ID ${modelId} not found`);
@@ -488,7 +465,7 @@
 			});
 
 			if (feedback) {
-				updatedMessage.feedbackId = feedback.id;
+				(updatedMessage as any).feedbackId = feedback.id;
 			}
 		}
 
@@ -502,12 +479,15 @@
 
 			if (!updatedMessage.annotation?.tags && (message?.content ?? '') !== '') {
 				// attempt to generate tags
-				const tags = await generateTags(localStorage.token, message.model, messages, chatId).catch(
-					(error) => {
-						console.error(error);
-						return [];
-					}
-				);
+				const tags = await generateTags(
+					localStorage.token,
+					message.model ?? '',
+					messages,
+					chatId
+				).catch((error) => {
+					console.error(error);
+					return [];
+				});
 				console.log(tags);
 
 				if (tags) {
@@ -517,7 +497,7 @@
 					saveMessage(message.id, updatedMessage);
 					await updateFeedbackById(
 						localStorage.token,
-						updatedMessage.feedbackId,
+						(updatedMessage as any).feedbackId,
 						feedbackItem
 					).catch((error) => {
 						toast.error(`${error}`);
@@ -555,11 +535,13 @@
 		}
 	};
 
-	const contentCopyHandler = (e) => {
+	const contentCopyHandler = (e: ClipboardEvent) => {
 		if (contentContainerElement) {
 			e.preventDefault();
 			// Get the selected HTML
 			const selection = window.getSelection();
+			if (!selection) return;
+
 			const range = selection.getRangeAt(0);
 			const tempDiv = document.createElement('div');
 
@@ -578,8 +560,10 @@
 			});
 
 			// Put cleaned HTML + plain text into clipboard
-			e.clipboardData.setData('text/html', tempDiv.innerHTML);
-			e.clipboardData.setData('text/plain', selection.toString());
+			if (e.clipboardData) {
+				e.clipboardData.setData('text/html', tempDiv.innerHTML);
+				e.clipboardData.setData('text/plain', selection.toString());
+			}
 		}
 	};
 
@@ -619,7 +603,7 @@
 	<div
 		class=" flex w-full message-{message.id}"
 		id="message-{message.id}"
-		dir={$settings.chatDirection}
+		dir={$settings.chatDirection?.toLowerCase() as any}
 		style="scroll-margin-top: 3rem;"
 	>
 		<div class={`shrink-0 ltr:mr-3 rtl:ml-3 hidden @lg:flex mt-1 `}>
@@ -666,7 +650,7 @@
 						{#if message?.files && message.files?.filter((f) => f.type === 'image').length > 0}
 							<div
 								class="my-1 w-full flex overflow-x-auto gap-2 flex-wrap"
-								dir={$settings?.chatDirection ?? 'auto'}
+								dir={$settings?.chatDirection?.toLowerCase() as any}
 							>
 								{#each message.files as file}
 									<div>
@@ -678,7 +662,7 @@
 												url={file.url}
 												name={file.name}
 												type={file.type}
-												size={file?.size}
+												size={file?.size ?? 0}
 												small={true}
 											/>
 										{/if}
@@ -717,10 +701,12 @@
 										const messagesContainer = document.getElementById('messages-container');
 										const savedScrollTop = messagesContainer?.scrollTop;
 
-										e.target.style.height = '';
-										e.target.style.height = `${e.target.scrollHeight}px`;
+										const target = e.target as HTMLTextAreaElement;
+										target.style.height = '';
+										target.style.height = `${target.scrollHeight}px`;
 
-										if (messagesContainer) messagesContainer.scrollTop = savedScrollTop;
+										if (messagesContainer && savedScrollTop !== undefined)
+											messagesContainer.scrollTop = savedScrollTop;
 									}}
 									on:keydown={(e) => {
 										if (e.key === 'Escape') {
@@ -734,7 +720,7 @@
 											document.getElementById('confirm-edit-message-button')?.click();
 										}
 									}}
-								/>
+								></textarea>
 
 								<div class=" mt-2 mb-1 flex justify-between text-sm font-medium">
 									<div>
@@ -826,7 +812,13 @@
 							{/if}
 
 							{#if message?.error}
-								<Error content={message?.error?.content ?? message.content} />
+								<Error
+									content={typeof message.error === 'object' && message.error?.content
+										? message.error.content
+										: typeof message.error === 'string'
+											? message.error
+											: message.content}
+								/>
 							{/if}
 
 							{#if (message?.sources || message?.citations) && (model?.info?.meta?.capabilities?.citations ?? true)}
@@ -889,15 +881,18 @@
 												min="1"
 												max={siblings.length}
 												on:focus={(e) => {
-													e.target.select();
+													(e.target as HTMLInputElement).select();
 												}}
 												on:blur={(e) => {
-													gotoMessage(message, e.target.value - 1);
+													gotoMessage(message, parseInt((e.target as HTMLInputElement).value) - 1);
 													messageIndexEdit = false;
 												}}
 												on:keydown={(e) => {
 													if (e.key === 'Enter') {
-														gotoMessage(message, e.target.value - 1);
+														gotoMessage(
+															message,
+															parseInt((e.target as HTMLInputElement).value) - 1
+														);
 														messageIndexEdit = false;
 													}
 												}}
@@ -914,8 +909,8 @@
 												await tick();
 												const input = document.getElementById(`message-index-input-${message.id}`);
 												if (input) {
-													input.focus();
-													input.select();
+													(input as HTMLInputElement).focus();
+													(input as HTMLInputElement).select();
 												}
 											}}
 										>
@@ -1282,9 +1277,9 @@
 											/>
 
 											<RegenerateMenu
-												onRegenerate={(prompt = null) => {
+												onRegenerate={(prompt: string | null = null) => {
 													showRateComment = false;
-													regenerateResponse(message, prompt);
+													regenerateResponse(message, prompt as any);
 
 													(model?.actions ?? []).forEach((action) => {
 														dispatch('action', {

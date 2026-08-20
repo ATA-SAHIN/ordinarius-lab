@@ -1,4 +1,5 @@
 import { WEBUI_API_BASE_URL } from '$lib/constants';
+import { getOpenClawAvailableCommands } from '../openclaw';
 
 type PromptItem = {
 	id?: string; // Prompt ID
@@ -105,6 +106,22 @@ export const getPrompts = async (token: string = '') => {
 		throw error;
 	}
 
+	if (res && Array.isArray(res)) {
+		try {
+			const openclawCommands = await getOpenClawAvailableCommands(token);
+			if (openclawCommands && Array.isArray(openclawCommands)) {
+				return [...res, ...openclawCommands.map(c => ({
+					...c,
+					user: { name: 'OpenClaw', email: 'system@openclaw.engine' },
+					write_access: true,
+					meta: { manifest: { version: 'OpenClaw Engine' } }
+				}))];
+			}
+		} catch (e) {
+			console.warn('Failed to load OpenClaw commands natively', e);
+		}
+	}
+
 	return res;
 };
 
@@ -192,6 +209,35 @@ export const getPromptItems = async (
 		throw error;
 	}
 
+	// Return empty result if API call failed
+	if (!res) {
+		return { items: [], total: 0 };
+	}
+
+	if (res.items) {
+		try {
+			const openclawCommands = await getOpenClawAvailableCommands(token);
+			if (openclawCommands && Array.isArray(openclawCommands)) {
+				// We append openclaw commands if they match the query/tag or if there are no filters
+				const ocItems = openclawCommands.map(c => ({
+					...c,
+					id: `oc_${c.command}`,
+					user: { name: 'OpenClaw', email: 'system@openclaw.engine' },
+					write_access: false,
+					meta: { manifest: { version: 'OpenClaw Engine' } }
+				})).filter((c: any) => {
+					if (query && !c.command.includes(query) && !c.content.includes(query)) return false;
+					return true;
+				});
+
+				res.items = [...res.items, ...ocItems];
+				res.total += ocItems.length;
+			}
+		} catch (e) {
+			console.warn('Failed to inject OpenClaw Commands into items', e);
+		}
+	}
+
 	return res;
 };
 
@@ -221,6 +267,27 @@ export const getPromptList = async (token: string = '') => {
 
 	if (error) {
 		throw error;
+	}
+
+	// Return empty array if API call failed
+	if (!res) {
+		return [];
+	}
+
+	if (Array.isArray(res)) {
+		try {
+			const openclawCommands = await getOpenClawAvailableCommands(token);
+			if (openclawCommands && Array.isArray(openclawCommands)) {
+				return [...res, ...openclawCommands.map(c => ({
+					...c,
+					user: { name: 'OpenClaw', email: 'system@openclaw.engine' },
+					write_access: true,
+					meta: { manifest: { version: 'OpenClaw Engine' } }
+				}))];
+			}
+		} catch (e) {
+			console.warn('Failed to load OpenClaw commands natively', e);
+		}
 	}
 
 	return res;
@@ -255,6 +322,23 @@ export const getPromptByCommand = async (token: string, command: string) => {
 
 	if (error) {
 		throw error;
+	}
+
+	if (!res || res.detail === 'Prompt not found') {
+		try {
+			const openclawCommands = await getOpenClawAvailableCommands(token);
+			const found = (openclawCommands || []).find((c: any) => c.command === command);
+			if (found) {
+				return {
+					...found,
+					user: { name: 'OpenClaw', email: 'system@openclaw.engine' },
+					write_access: true,
+					meta: { manifest: { version: 'OpenClaw Engine' } }
+				};
+			}
+		} catch (e) {
+			console.warn('Failed to intercept openclaw command', e);
+		}
 	}
 
 	return res;

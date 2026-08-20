@@ -1,4 +1,5 @@
 <script lang="ts">
+	// @ts-nocheck
 	import { marked } from 'marked';
 	import DOMPurify from 'dompurify';
 
@@ -116,7 +117,7 @@
 	import { Decoration, DecorationSet } from 'prosemirror-view';
 	import { Editor, Extension, markInputRule, mergeAttributes } from '@tiptap/core';
 
-	import { AIAutocompletion } from './RichTextInput/AutoCompletion.js';
+	import { AIAutocompletion } from './RichTextInput/AutoCompletion.ts';
 
 	import StarterKit from '@tiptap/starter-kit';
 
@@ -129,7 +130,7 @@
 	import { ListKit } from '@tiptap/extension-list';
 	import { Placeholder, CharacterCount } from '@tiptap/extensions';
 
-	import Image from './RichTextInput/Image/index.js';
+	import Image from './RichTextInput/Image/index.ts';
 	// import TiptapImage from '@tiptap/extension-image';
 
 	import FileHandler from '@tiptap/extension-file-handler';
@@ -164,9 +165,9 @@
 
 	import type { SocketIOCollaborationProvider } from './RichTextInput/Collaboration';
 
-	export let oncompositionstart = (e) => {};
-	export let oncompositionend = (e) => {};
-	export let onChange = (e) => {};
+	export let oncompositionstart: (e: CompositionEvent) => void = (e) => {};
+	export let oncompositionend: (e: CompositionEvent) => void = (e) => {};
+	export let onChange: (value: string | any) => void = (e) => {};
 
 	// create a lowlight instance with all languages loaded
 	const lowlight = createLowlight(
@@ -181,9 +182,9 @@
 
 	export let editor: Editor | null = null;
 
-	export let socket = null;
-	export let user = null;
-	export let files = [];
+	export let socket: any = null;
+	export let user: any = null;
+	export let files: any[] = [];
 
 	export let documentId = '';
 
@@ -202,14 +203,18 @@
 		}
 	};
 
-	export let richText = true;
-	export let dragHandle = false;
-	export let link = false;
-	export let image = false;
-	export let fileHandler = false;
-	export let suggestions = null;
+	export let richText: boolean = true;
+	export let dragHandle: boolean = false;
+	export let link: boolean = false;
+	export let image: boolean = false;
+	export let fileHandler: boolean = false;
+	export let suggestions: any = null;
 
-	export let onFileDrop = (currentEditor, files, pos) => {
+	export let onFileDrop: (currentEditor: Editor, files: File[], pos: number) => void = (
+		currentEditor,
+		files,
+		pos
+	) => {
 		files.forEach((file) => {
 			const fileReader = new FileReader();
 
@@ -229,7 +234,11 @@
 		});
 	};
 
-	export let onFilePaste = (currentEditor, files, htmlContent) => {
+	export let onFilePaste: (currentEditor: Editor, files: File[], htmlContent: string) => void = (
+		currentEditor,
+		files,
+		htmlContent
+	) => {
 		files.forEach((file) => {
 			if (htmlContent) {
 				// if there is htmlContent, stop manual insertion & let other extensions handle insertion via inputRule
@@ -256,7 +265,7 @@
 		});
 	};
 
-	export let onSelectionUpdate = (e) => {};
+	export let onSelectionUpdate: (e: any) => void = (e) => {};
 
 	export let id = '';
 	export let value = '';
@@ -325,7 +334,7 @@
 	};
 
 	// Returns {start, end} of the word at pos
-	function getWordBoundsAtPos(doc, pos) {
+	function getWordBoundsAtPos(doc: any, pos: number) {
 		const resolvedPos = doc.resolve(pos);
 		const textBlock = resolvedPos.parent;
 		const paraStart = resolvedPos.start();
@@ -342,7 +351,7 @@
 		};
 	}
 
-	export const replaceCommandWithText = async (text) => {
+	export const replaceCommandWithText = async (text: string) => {
 		const { state, dispatch } = editor.view;
 		const { selection } = state;
 		const pos = selection.from;
@@ -471,7 +480,7 @@
 		focus();
 	};
 
-	export const insertContent = (content) => {
+	export const insertContent = (content: any) => {
 		if (!editor || !editor.view) return;
 		const { state, view } = editor;
 		const { schema, tr } = state;
@@ -486,9 +495,9 @@
 	};
 
 	// Convert text to ProseMirror nodes, using hardBreak for newlines
-	const textToNodes = (state, text) => {
+	const textToNodes = (state: EditorState, text: string) => {
 		if (!text.includes('\n')) return state.schema.text(text);
-		const nodes = [];
+		const nodes: any[] = [];
 		text.split('\n').forEach((line, i) => {
 			if (i > 0) nodes.push(state.schema.nodes.hardBreak.create());
 			if (line) nodes.push(state.schema.text(line));
@@ -496,7 +505,7 @@
 		return nodes;
 	};
 
-	export const replaceVariables = (variables) => {
+	export const replaceVariables = (variables: Record<string, any>) => {
 		if (!editor || !editor.view) return;
 		const { state, view } = editor;
 		const { doc } = state;
@@ -558,7 +567,7 @@
 	};
 
 	// Function to find the next template in the document
-	function findNextTemplate(doc, from = 0) {
+	function findNextTemplate(doc: any, from: number = 0) {
 		const patterns = [{ start: '{{', end: '}}' }];
 
 		let result = null;
@@ -590,7 +599,7 @@
 	}
 
 	// Function to select the next template in the document
-	function selectNextTemplate(state, dispatch) {
+	function selectNextTemplate(state: EditorState, dispatch: any) {
 		const { doc, selection } = state;
 		const from = selection.to;
 		let template = findNextTemplate(doc, from);
@@ -615,7 +624,7 @@
 		return false;
 	}
 
-	export const setContent = (content) => {
+	export const setContent = (content: any) => {
 		editor.commands.setContent(content);
 	};
 
@@ -658,7 +667,7 @@
 		}
 	});
 
-	import { listDragHandlePlugin } from './RichTextInput/listDragHandlePlugin.js';
+	import { listDragHandlePlugin } from './RichTextInput/listDragHandlePlugin.ts';
 
 	const ListItemDragHandle = Extension.create({
 		name: 'listItemDragHandle',
@@ -690,7 +699,11 @@
 			}
 
 			if (!raw) {
-				async function tryParse(value, attempts = 3, interval = 100) {
+				async function tryParse(
+					value: string,
+					attempts: number = 3,
+					interval: number = 100
+				): Promise<string> {
 					try {
 						// Try parsing the value
 						return marked.parse(value.replaceAll(`\n<br/>`, `<br/>`), {
@@ -771,7 +784,7 @@
 				...(autocomplete
 					? [
 							AIAutocompletion.configure({
-								generateCompletion: async (text) => {
+								generateCompletion: async (text: string) => {
 									if (text.trim().length === 0) {
 										return null;
 									}

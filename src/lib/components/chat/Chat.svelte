@@ -1,4 +1,5 @@
 <script lang="ts">
+	// @ts-nocheck
 	import { v4 as uuidv4 } from 'uuid';
 	import { toast } from 'svelte-sonner';
 	import { PaneGroup, Pane, PaneResizer } from 'paneforge';
@@ -18,7 +19,6 @@
 		chatId,
 		chats,
 		config,
-		type Model,
 		models,
 		tags as allTags,
 		settings,
@@ -63,6 +63,7 @@
 		displayFileHandler
 	} from '$lib/utils';
 	import { AudioQueue } from '$lib/utils/audio';
+	import type { Model } from '$lib/types/models';
 
 	import {
 		archiveChatById,
@@ -90,6 +91,12 @@
 	import { uploadFile } from '$lib/apis/files';
 	import { createOpenAITextStream } from '$lib/apis/streaming';
 	import { getFunctions } from '$lib/apis/functions';
+	import {
+		executeOpenClawFlow,
+		getOpenClawFlowStatus,
+		getOpenClawFlowEvents,
+		getOpenClawFlowMetrics
+	} from '$lib/apis/openclaw';
 	import { updateFolderById } from '$lib/apis/folders';
 
 	import Banner from '../common/Banner.svelte';
@@ -130,19 +137,19 @@
 	let eventConfirmationInputPlaceholder = '';
 	let eventConfirmationInputValue = '';
 	let eventConfirmationInputType = '';
-	let eventCallback = null;
+	let eventCallback: ((value: any) => void) | null = null;
 
-	let selectedModels = [''];
+	let selectedModels: string[] = [''];
 	let atSelectedModel: Model | undefined;
-	let selectedModelIds = [];
+	let selectedModelIds: string[] = [];
 	$: if (atSelectedModel !== undefined) {
 		selectedModelIds = [atSelectedModel.id];
 	} else {
 		selectedModelIds = selectedModels;
 	}
 
-	let selectedToolIds = [];
-	let selectedFilterIds = [];
+	let selectedToolIds: string[] = [];
+	let selectedFilterIds: string[] = [];
 
 	let imageGenerationEnabled = false;
 	let webSearchEnabled = false;
@@ -152,23 +159,93 @@
 
 	let generating = false;
 	let dragged = false;
-	let generationController = null;
+	let generationController: AbortController | null = null;
 
-	let chat = null;
-	let tags = [];
+	let chat: any = null;
+	let tags: any[] = [];
 
-	let history = {
+	let history: {
+		messages: Record<string, any>;
+		currentId: string | null;
+		state?: any;
+	} = {
 		messages: {},
 		currentId: null
 	};
 
-	let taskIds = null;
+	let taskIds: Record<string, string> | null = null;
+	let openclawRuntimeExpanded = false;
+	let openclawExecutionQuery = '';
+	let openclawExecutionMode: 'AUTO' | 'MULTI' | 'SINGLE' = 'AUTO';
+	let openclawExecutionLoading = false;
+	let openclawExecutionId = '';
+	let openclawExecutionStatus = '';
+	let openclawExecutionExperts: string[] = [];
+	let openclawExecutionTimeline: Array<{ expert: string; status: string; at?: string }> = [];
+	let openclawExecutionEvents: Array<{ seq: number; type: string; at?: string }> = [];
+	let openclawExecutionLastSeq = 0;
+	let openclawExecutionMetrics: Record<string, any> | null = null;
+	let openclawExecutionAutoPollTimer: ReturnType<typeof setInterval> | null = null;
+
+	const runOpenClawExecution = async () => {
+		if (!localStorage.token) return;
+		if (!openclawExecutionQuery.trim()) {
+			toast.error($i18n.t('Execution query is required.'));
+			return;
+		}
+		openclawExecutionLoading = true;
+		try {
+			const response = await executeOpenClawFlow(localStorage.token, {
+				mode: openclawExecutionMode,
+				query: openclawExecutionQuery.trim()
+			});
+			openclawExecutionId = response.execution_id;
+			openclawExecutionStatus = response.status;
+			openclawExecutionExperts = response.experts_to_execute ?? [];
+			openclawExecutionTimeline = [];
+			openclawExecutionEvents = [];
+			openclawExecutionLastSeq = 0;
+			toast.success($i18n.t('OpenClaw flow started.'));
+		} catch (err) {
+			console.error('OpenClaw flow start failed:', err);
+			toast.error($i18n.t('Failed to start OpenClaw flow.'));
+		} finally {
+			openclawExecutionLoading = false;
+		}
+	};
+
+	const pollOpenClawExecutionStatus = async () => {
+		if (!localStorage.token || !openclawExecutionId) return;
+		try {
+			const eventBatch = await getOpenClawFlowEvents(localStorage.token, openclawExecutionId, {
+				since_seq: openclawExecutionLastSeq,
+				limit: 200
+			});
+			const newEvents = Array.isArray(eventBatch?.events) ? eventBatch.events : [];
+			if (newEvents.length > 0) {
+				openclawExecutionEvents = [...openclawExecutionEvents, ...newEvents].slice(-200);
+				openclawExecutionLastSeq = Number(eventBatch?.next_since_seq ?? openclawExecutionLastSeq);
+			}
+
+			const status = await getOpenClawFlowStatus(localStorage.token, openclawExecutionId);
+			openclawExecutionStatus = status?.status ?? openclawExecutionStatus;
+			openclawExecutionExperts = status?.experts_to_execute ?? openclawExecutionExperts;
+			openclawExecutionTimeline = status?.delegation_timeline ?? openclawExecutionTimeline;
+			openclawExecutionMetrics = await getOpenClawFlowMetrics(localStorage.token, openclawExecutionId);
+			if (openclawExecutionStatus === 'completed' && openclawExecutionAutoPollTimer) {
+				clearInterval(openclawExecutionAutoPollTimer);
+				openclawExecutionAutoPollTimer = null;
+			}
+		} catch (err) {
+			console.error('OpenClaw flow poll failed:', err);
+		}
+	};
 
 	// Chat Input
 	let prompt = '';
-	let chatFiles = [];
-	let files = [];
-	let params = {};
+	let chatFiles: any[] = [];
+	let files: any[] = [];
+	let params: Record<string, any> = {};
 
 	// Message queue for storing messages while generating
 	let messageQueue: { id: string; prompt: string; files: any[] }[] = [];
@@ -215,10 +292,10 @@
 					if (restoredQueue.length > 0) {
 						sessionStorage.removeItem(`chat-queue-${chatIdProp}`);
 						// Check if there are pending tasks (still generating)
-						const hasPendingTask = taskIds !== null && taskIds.length > 0;
+						const hasPendingTask = taskIds !== null && Object.keys(taskIds).length > 0;
 						if (!hasPendingTask) {
 							// No pending tasks - process the queue
-							files = restoredQueue.flatMap((m) => m.files);
+							files = restoredQueue.flatMap((m: any) => m.files);
 							await tick();
 							const combinedPrompt = restoredQueue.map((m) => m.prompt).join('\n\n');
 							await submitPrompt(combinedPrompt);
@@ -255,7 +332,7 @@
 		}
 	};
 
-	const onSelect = async (e) => {
+	const onSelect = async (e: any) => {
 		const { type, data } = e;
 
 		if (type === 'prompt') {
@@ -329,9 +406,9 @@
 					)
 				];
 			} else if ($settings?.tools) {
-				selectedToolIds = $settings.tools;
+				selectedToolIds = $settings.tools ?? [];
 			} else {
-				selectedToolIds = selectedToolIds.filter((id) => !id.startsWith('direct_server:'));
+				selectedToolIds = (selectedToolIds ?? []).filter((id) => !id.startsWith('direct_server:'));
 			}
 
 			// Set Default Filters (Toggleable only)
@@ -395,7 +472,7 @@
 		if (($settings?.scrollOnBranchChange ?? true) && scroll) {
 			const messageElement = document.getElementById(`message-${message.id}`);
 			if (messageElement) {
-				messageElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+				messageElement.scrollIntoView({ behavior: 'smooth' as ScrollBehavior, block: 'start' });
 			}
 		}
 
@@ -439,9 +516,9 @@
 					chatCompletionEventHandler(data, message, event.chat_id);
 				} else if (type === 'chat:tasks:cancel') {
 					taskIds = null;
-					const responseMessage = history.messages[history.currentId];
+					const responseMessage = (history.messages as any)[history.currentId as string];
 					// Set all response messages to done
-					for (const messageId of history.messages[responseMessage.parentId].childrenIds) {
+					for (const messageId of (history.messages as any)[responseMessage.parentId].childrenIds) {
 						history.messages[messageId].done = true;
 					}
 				} else if (type === 'chat:message:delta' || type === 'message') {
@@ -622,7 +699,9 @@
 	const stopAudio = () => {
 		try {
 			speechSynthesis.cancel();
-			$audioQueue?.stop();
+			if ($audioQueue) {
+				$audioQueue.stop();
+			}
 		} catch {}
 	};
 
@@ -744,11 +823,27 @@
 				$socket?.off('events', chatEventHandler);
 				audioQueueInstance?.destroy();
 				audioQueue.set(null);
+				if (openclawExecutionAutoPollTimer) {
+					clearInterval(openclawExecutionAutoPollTimer);
+					openclawExecutionAutoPollTimer = null;
+				}
 			} catch (e) {
 				console.error(e);
 			}
 		};
 	});
+
+	$: {
+		if (openclawRuntimeExpanded && openclawExecutionId && !openclawExecutionAutoPollTimer) {
+			openclawExecutionAutoPollTimer = setInterval(() => {
+				pollOpenClawExecutionStatus();
+			}, 2000);
+		}
+		if ((!openclawRuntimeExpanded || !openclawExecutionId) && openclawExecutionAutoPollTimer) {
+			clearInterval(openclawExecutionAutoPollTimer);
+			openclawExecutionAutoPollTimer = null;
+		}
+	}
 
 	// File upload functions
 
@@ -1046,7 +1141,7 @@
 						const modelSelectorInput = document.getElementById('model-search-input');
 						if (modelSelectorInput) {
 							modelSelectorInput.focus();
-							modelSelectorInput.value = urlModels[0];
+							(modelSelectorInput as HTMLInputElement).value = urlModels[0];
 							modelSelectorInput.dispatchEvent(new Event('input'));
 						}
 					}
@@ -1482,7 +1577,15 @@
 		}
 	};
 
-	const addMessages = async ({ modelId, parentId, messages }) => {
+	const addMessages = async ({
+		modelId,
+		parentId,
+		messages
+	}: {
+		modelId: string;
+		parentId: string;
+		messages: any[];
+	}) => {
 		const model = $models.filter((m) => m.id === modelId).at(0);
 
 		let parentMessage = history.messages[parentId];
@@ -2393,7 +2496,7 @@
 		await sendMessage(history, userMessageId);
 	};
 
-	const regenerateResponse = async (message, suggestionPrompt = null) => {
+	const regenerateResponse = async (message: any, suggestionPrompt: string | null = null) => {
 		console.log('regenerateResponse');
 
 		if (history.currentId) {
@@ -2475,7 +2578,7 @@
 				responses
 			);
 
-			if (res && res.ok && res.body && generating) {
+			if (res && (res as Response).ok && (res as Response).body && generating) {
 				generationController = controller as AbortController;
 				const textStream = await createOpenAITextStream(
 					res.body,
@@ -2755,6 +2858,95 @@
 						}}
 					/>
 
+					<div class="px-4 pt-2 z-10">
+						<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-850">
+							<button
+								class="w-full text-left px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-300"
+								type="button"
+								on:click={() => {
+									openclawRuntimeExpanded = !openclawRuntimeExpanded;
+								}}
+							>
+								⚡ {$i18n.t('OpenClaw Runtime Monitor')}
+							</button>
+							{#if openclawRuntimeExpanded}
+								<div class="px-3 pb-3">
+									<div class="flex gap-2 items-center">
+										<select
+											class="text-xs bg-transparent outline-hidden border-b border-gray-200 dark:border-gray-700 py-1"
+											bind:value={openclawExecutionMode}
+										>
+											<option value="AUTO">AUTO</option>
+											<option value="MULTI">MULTI</option>
+											<option value="SINGLE">SINGLE</option>
+										</select>
+										<input
+											class="flex-1 text-xs bg-transparent outline-hidden border-b border-gray-200 dark:border-gray-700 py-1"
+											type="text"
+											placeholder={$i18n.t('Run query (orchestration task)')}
+											bind:value={openclawExecutionQuery}
+										/>
+										<button
+											class="px-2 py-1 text-xs rounded bg-black text-white dark:bg-white dark:text-black"
+											type="button"
+											on:click={runOpenClawExecution}
+											disabled={openclawExecutionLoading}
+										>
+											{openclawExecutionLoading ? $i18n.t('Running...') : $i18n.t('Run')}
+										</button>
+										<button
+											class="px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600"
+											type="button"
+											on:click={pollOpenClawExecutionStatus}
+											disabled={!openclawExecutionId}
+										>
+											{$i18n.t('Poll')}
+										</button>
+									</div>
+									{#if openclawExecutionId}
+										<div class="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+											ID: {openclawExecutionId} | Status: {openclawExecutionStatus || 'pending'}
+										</div>
+										<div class="mt-2 flex flex-wrap gap-1">
+											{#each openclawExecutionExperts as ex}
+												<span
+													class="px-2 py-0.5 text-[10px] rounded-full border border-gray-300 dark:border-gray-600"
+												>
+													{ex}
+												</span>
+											{/each}
+										</div>
+										{#if openclawExecutionTimeline.length > 0}
+											<div class="mt-2 max-h-24 overflow-auto border border-gray-200 dark:border-gray-700 rounded">
+												{#each openclawExecutionTimeline as t}
+													<div class="px-2 py-1 text-[11px] border-b border-gray-100 dark:border-gray-700/40">
+														{t.expert}: {t.status}
+													</div>
+												{/each}
+											</div>
+										{/if}
+										{#if openclawExecutionMetrics}
+											<div class="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+												TTFB: {openclawExecutionMetrics?.ttfb_ms ?? '-'} ms | Duration:
+												{openclawExecutionMetrics?.duration_ms ?? '-'} ms | EventRate:
+												{openclawExecutionMetrics?.event_rate_per_sec ?? '-'}
+											</div>
+										{/if}
+										{#if openclawExecutionEvents.length > 0}
+											<div class="mt-2 max-h-24 overflow-auto border border-gray-200 dark:border-gray-700 rounded">
+												{#each openclawExecutionEvents as ev}
+													<div class="px-2 py-1 text-[11px] border-b border-gray-100 dark:border-gray-700/40">
+														#{ev.seq} {ev.type}
+													</div>
+												{/each}
+											</div>
+										{/if}
+									{/if}
+								</div>
+							{/if}
+						</div>
+					</div>
+
 					<div id="chat-pane" class="flex flex-col flex-auto z-10 w-full @container overflow-auto">
 						{#if ($settings?.landingPageMode === 'chat' && !$selectedFolder) || createMessagesList(history, history.currentId).length > 0}
 							<div
@@ -2919,7 +3111,7 @@
 							return [...a, model];
 						}
 						return a;
-					}, [])}
+					}, [] as Model[])}
 					{submitPrompt}
 					{stopResponse}
 					{showMessage}

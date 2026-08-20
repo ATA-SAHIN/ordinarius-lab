@@ -91,13 +91,21 @@
 				PAGE_SIZE
 			);
 			const chats = res?.chats ?? [];
-			chatList = chats.map((c: any) => ({
-				id: c.chat_id,
-				title: c.first_message || 'No preview',
-				updated_at: c.updated_at,
-				user_id: c.user_id,
-				user_name: c.user_name
-			}));
+			chatList = chats.map(
+				(c: {
+					chat_id: string;
+					first_message?: string;
+					updated_at: number;
+					user_id?: string;
+					user_name?: string;
+				}) => ({
+					id: c.chat_id,
+					title: c.first_message || 'No preview',
+					updated_at: c.updated_at,
+					user_id: c.user_id,
+					user_name: c.user_name
+				})
+			);
 			allChatsLoaded = chats.length < PAGE_SIZE;
 		} catch (err) {
 			console.error('Failed to load chats:', err);
@@ -121,13 +129,21 @@
 				PAGE_SIZE
 			);
 			const chats = res?.chats ?? [];
-			const newChats = chats.map((c: any) => ({
-				id: c.chat_id,
-				title: c.first_message || 'No preview',
-				updated_at: c.updated_at,
-				user_id: c.user_id,
-				user_name: c.user_name
-			}));
+			const newChats = chats.map(
+				(c: {
+					chat_id: string;
+					first_message?: string;
+					updated_at: number;
+					user_id?: string;
+					user_name?: string;
+				}) => ({
+					id: c.chat_id,
+					title: c.first_message || 'No preview',
+					updated_at: c.updated_at,
+					user_id: c.user_id,
+					user_name: c.user_name
+				})
+			);
 			chatList = [...chatList, ...newChats];
 			allChatsLoaded = chats.length < PAGE_SIZE;
 		} catch (err) {

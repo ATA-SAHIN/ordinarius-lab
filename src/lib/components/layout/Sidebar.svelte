@@ -30,8 +30,9 @@
 		activeChatIds
 	} from '$lib/stores';
 	import { onMount, getContext, tick, onDestroy } from 'svelte';
+	import type { Writable } from 'svelte/store';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<{ t: (k: string, p?: Record<string, any>) => string }>>('i18n');
 
 	import {
 		getChatList,
@@ -74,7 +75,7 @@
 	let navElement;
 	let shiftKey = false;
 
-	let selectedChatId = null;
+	let selectedChatId: string | null = null;
 	let showCreateChannel = false;
 
 	// Pagination variables
@@ -83,16 +84,16 @@
 
 	let showCreateFolderModal = false;
 
-	let pinnedModels = [];
+	let pinnedModels: string[] = [];
 
 	let showPinnedModels = false;
 	let showChannels = false;
 	let showFolders = false;
 
-	let folders = {};
-	let folderRegistry = {};
+	let folders: Record<string, any> = {};
+	let folderRegistry: Record<string, any> = {};
 
-	let newFolderId = null;
+	let newFolderId: string | null = null;
 
 	$: if ($selectedFolder) {
 		initFolders();
@@ -106,7 +107,7 @@
 		const folderList = await getFolders(localStorage.token).catch((error) => {
 			return [];
 		});
-		_folders.set(folderList.sort((a, b) => b.updated_at - a.updated_at));
+		_folders.set(folderList.sort((a: any, b: any) => (b.updated_at ?? 0) - (a.updated_at ?? 0)));
 
 		folders = {};
 
@@ -135,14 +136,22 @@
 					: [folder.id];
 
 				// Sort the children by updated_at field
-				folders[folder.parent_id].childrenIds.sort((a, b) => {
-					return folders[b].updated_at - folders[a].updated_at;
+				folders[folder.parent_id].childrenIds.sort((a: string, b: string) => {
+					return (folders[b]?.updated_at ?? 0) - (folders[a]?.updated_at ?? 0);
 				});
 			}
 		}
 	};
 
-	const createFolder = async ({ name, data, parent_id }) => {
+	const createFolder = async ({
+		name,
+		data,
+		parent_id
+	}: {
+		name: string;
+		data?: any;
+		parent_id?: string | null;
+	}) => {
 		name = name?.trim();
 		if (!name) {
 			toast.error($i18n.t('Folder name cannot be empty.'));
@@ -150,8 +159,8 @@
 		}
 
 		// Check for duplicate names in the same parent
-		const siblings = Object.values(folders).filter((folder) => folder.parent_id === parent_id);
-		if (siblings.find((folder) => folder.name.toLowerCase() === name.toLowerCase())) {
+		const siblings = Object.values(folders).filter((folder: any) => folder.parent_id === parent_id);
+		if (siblings.find((folder: any) => folder.name.toLowerCase() === name.toLowerCase())) {
 			// If a folder with the same name already exists, append a number to the name
 			let i = 1;
 			while (
@@ -201,7 +210,7 @@
 		if (res) {
 			await channels.set(
 				res.sort(
-					(a, b) =>
+					(a: any, b: any) =>
 						['', null, 'group', 'dm'].indexOf(a.type) - ['', null, 'group', 'dm'].indexOf(b.type)
 				)
 			);
@@ -249,12 +258,16 @@
 
 		// once the bottom of the list has been reached (no results) there is no need to continue querying
 		allChatsLoaded = newChatList.length === 0;
-		await chats.set([...($chats ? $chats : []), ...newChatList]);
+		await chats.set([...($chats ?? []), ...newChatList]);
 
 		chatListLoading = false;
 	};
 
-	const importChatHandler = async (items, pinned = false, folderId = null) => {
+	const importChatHandler = async (
+		items: any[],
+		pinned = false,
+		folderId: string | null = null
+	) => {
 		console.log('importChatHandler', items, pinned, folderId);
 		for (const item of items) {
 			console.log(item);
@@ -275,13 +288,13 @@
 		initChatList();
 	};
 
-	const inputFilesHandler = async (files) => {
+	const inputFilesHandler = async (files: FileList | File[]) => {
 		console.log(files);
 
 		for (const file of files) {
 			const reader = new FileReader();
 			reader.onload = async (e) => {
-				const content = e.target.result;
+				const content = (e.target as FileReader).result as string;
 
 				try {
 					const chatItems = JSON.parse(content);
@@ -295,7 +308,7 @@
 		}
 	};
 
-	const tagEventHandler = async (type, tagName, chatId) => {
+	const tagEventHandler = async (type: 'add' | 'delete', tagName: string, chatId: string) => {
 		console.log(type, tagName, chatId);
 		if (type === 'delete') {
 			initChatList();
@@ -306,7 +319,7 @@
 
 	let draggedOver = false;
 
-	const onDragOver = (e) => {
+	const onDragOver = (e: DragEvent) => {
 		e.preventDefault();
 
 		// Check if a file is being draggedOver.
@@ -321,7 +334,7 @@
 		draggedOver = false;
 	};
 
-	const onDrop = async (e) => {
+	const onDrop = async (e: DragEvent) => {
 		e.preventDefault();
 		console.log(e); // Log the drop event
 
@@ -338,8 +351,8 @@
 		draggedOver = false; // Reset draggedOver status after drop
 	};
 
-	let touchstart;
-	let touchend;
+	let touchstart: Touch;
+	let touchend: Touch;
 
 	function checkDirection() {
 		const screenWidth = window.innerWidth;
@@ -354,23 +367,23 @@
 		}
 	}
 
-	const onTouchStart = (e) => {
+	const onTouchStart = (e: TouchEvent) => {
 		touchstart = e.changedTouches[0];
 		console.log(touchstart.clientX);
 	};
 
-	const onTouchEnd = (e) => {
+	const onTouchEnd = (e: TouchEvent) => {
 		touchend = e.changedTouches[0];
 		checkDirection();
 	};
 
-	const onKeyDown = (e) => {
+	const onKeyDown = (e: KeyboardEvent) => {
 		if (e.key === 'Shift') {
 			shiftKey = true;
 		}
 	};
 
-	const onKeyUp = (e) => {
+	const onKeyUp = (e: KeyboardEvent) => {
 		if (e.key === 'Shift') {
 			shiftKey = false;
 		}
@@ -409,7 +422,7 @@
 		localStorage.setItem('sidebarWidth', String($sidebarWidth));
 	};
 
-	const resizeSidebarHandler = (endClientX) => {
+	const resizeSidebarHandler = (endClientX: number) => {
 		const dx = endClientX - startClientX;
 		const newSidebarWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + dx));
 
@@ -441,7 +454,7 @@
 				if ($showSidebar && !value) {
 					const navElement = document.getElementsByTagName('nav')[0];
 					if (navElement) {
-						navElement.style['-webkit-app-region'] = 'drag';
+						(navElement.style as any)['-webkit-app-region'] = 'drag';
 					}
 				}
 			}),
@@ -454,12 +467,12 @@
 				if (navElement) {
 					if ($mobile) {
 						if (!value) {
-							navElement.style['-webkit-app-region'] = 'drag';
+							(navElement.style as any)['-webkit-app-region'] = 'drag';
 						} else {
-							navElement.style['-webkit-app-region'] = 'no-drag';
+							(navElement.style as any)['-webkit-app-region'] = 'no-drag';
 						}
 					} else {
-						navElement.style['-webkit-app-region'] = 'drag';
+						(navElement.style as any)['-webkit-app-region'] = 'drag';
 					}
 				}
 
@@ -474,7 +487,10 @@
 					await initChatList();
 
 					// Check which chats have active tasks
-					const allChatIds = [...$chats.map((c) => c.id), ...$pinnedChats.map((c) => c.id)];
+					const allChatIds = [
+						...($chats ?? []).map((c) => c.id),
+						...($pinnedChats ?? []).map((c) => c.id)
+					];
 					if (allChatIds.length > 0) {
 						try {
 							const res = await checkActiveChats(localStorage.token, allChatIds);
@@ -582,7 +598,7 @@
 		await tick();
 	};
 
-	const isWindows = /Windows/i.test(navigator.userAgent);
+	const isWindows = typeof navigator !== 'undefined' ? /Windows/i.test(navigator.userAgent) : false;
 </script>
 
 <ArchivedChatsModal
@@ -630,11 +646,11 @@
 			goto(`/channels/${res.id}`);
 		}
 	}}
-/>
+></ChannelModal>
 
 <FolderModal
 	bind:show={showCreateFolderModal}
-	onSubmit={async (folder) => {
+	onSubmit={async (folder: any) => {
 		await createFolder(folder);
 		showCreateFolderModal = false;
 	}}
@@ -943,11 +959,7 @@
 			<div
 				class="relative flex flex-col flex-1 overflow-y-auto scrollbar-hidden pt-3 pb-3"
 				on:scroll={(e) => {
-					if (e.target.scrollTop === 0) {
-						scrollTop = 0;
-					} else {
-						scrollTop = e.target.scrollTop;
-					}
+					scrollTop = (e.target as HTMLElement).scrollTop;
 				}}
 			>
 				<div class="pb-1.5">

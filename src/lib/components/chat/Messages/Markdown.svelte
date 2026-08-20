@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import { onDestroy } from 'svelte';
 	import { marked } from 'marked';
 	import { replaceTokens, processResponseContent } from '$lib/utils';
@@ -12,11 +12,12 @@
 	import MarkdownTokens from './Markdown/MarkdownTokens.svelte';
 	import footnoteExtension from '$lib/utils/marked/footnote-extension';
 	import citationExtension from '$lib/utils/marked/citation-extension';
+	import type { Model } from '$lib/types/models';
 
 	export let id = '';
-	export let content;
+	export let content: string;
 	export let done = true;
-	export let model = null;
+	export let model: Model | null = null;
 	export let save = false;
 	export let preview = false;
 
@@ -24,18 +25,18 @@
 	export let editCodeBlock = true;
 	export let topPadding = false;
 
-	export let sourceIds = [];
+	export let sourceIds: string[] = [];
 
-	export let onSave = () => {};
-	export let onUpdate = () => {};
+	export let onSave: (code: string) => void = () => {};
+	export let onUpdate: (token: any) => void = () => {};
 
-	export let onPreview = () => {};
+	export let onPreview: (code: string) => void = () => {};
 
-	export let onSourceClick = () => {};
-	export let onTaskClick = () => {};
+	export let onSourceClick: (id: string) => void = () => {};
+	export let onTaskClick: (id: string) => void = () => {};
 
-	let tokens = [];
-	let pendingUpdate = null;
+	let tokens: any[] = [];
+	let pendingUpdate: number | null = null;
 	let lastContent = '';
 	let lastParsedContent = '';
 
@@ -44,16 +45,16 @@
 		breaks: true
 	};
 
-	marked.use(markedKatexExtension(options));
-	marked.use(markedExtension(options));
-	marked.use(citationExtension(options));
-	marked.use(footnoteExtension(options));
-	marked.use(disableSingleTilde);
+	marked.use(markedKatexExtension(options) as any);
+	marked.use(markedExtension(options) as any);
+	marked.use(citationExtension() as any);
+	marked.use(footnoteExtension() as any);
+	marked.use(disableSingleTilde as any);
 	marked.use({
 		extensions: [
-			mentionExtension({ triggerChar: '@' }),
-			mentionExtension({ triggerChar: '#' }),
-			mentionExtension({ triggerChar: '$' })
+			mentionExtension({ triggerChar: '@' }) as any,
+			mentionExtension({ triggerChar: '#' }) as any,
+			mentionExtension({ triggerChar: '$' }) as any
 		]
 	});
 
@@ -61,24 +62,28 @@
 		if (content === lastContent) return;
 		lastContent = content;
 
-		const processed = replaceTokens(processResponseContent(content), model?.name, $user?.name);
+		const processed = replaceTokens(
+			processResponseContent(content),
+			model?.name ?? '',
+			$user?.name ?? ''
+		);
 		if (processed === lastParsedContent) return;
 		lastParsedContent = processed;
 
 		tokens = marked.lexer(processed);
 	};
 
-	const updateHandler = (content) => {
+	const updateHandler = (content: string) => {
 		if (content) {
 			if (done) {
-				cancelAnimationFrame(pendingUpdate);
+				if (pendingUpdate) cancelAnimationFrame(pendingUpdate);
 				pendingUpdate = null;
 				parseTokens();
 			} else if (!pendingUpdate) {
 				pendingUpdate = requestAnimationFrame(() => {
 					pendingUpdate = null;
 					parseTokens();
-				});
+				}) as unknown as number;
 			}
 		}
 	};
@@ -87,7 +92,7 @@
 
 	// Throttle parsing to once per animation frame while streaming
 	$: onDestroy(() => {
-		cancelAnimationFrame(pendingUpdate);
+		if (pendingUpdate) cancelAnimationFrame(pendingUpdate);
 	});
 </script>
 

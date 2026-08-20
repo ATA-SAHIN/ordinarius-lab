@@ -1,24 +1,29 @@
 <script lang="ts">
 	import { getContext, onMount } from 'svelte';
+	import type { Writable } from 'svelte/store';
+	import type { FunctionModel } from '$lib/types';
 	import Checkbox from '$lib/components/common/Checkbox.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<{ t: (k: string, p?: Record<string, any>) => string }>>('i18n');
 
-	export let actions = [];
-	export let selectedActionIds = [];
+	export let actions: FunctionModel[] = [];
+	export let selectedActionIds: string[] = [];
 
-	let _actions = {};
+	let _actions: Record<string, FunctionModel & { selected: boolean }> = {};
 
 	onMount(() => {
-		_actions = actions.reduce((acc, action) => {
-			acc[action.id] = {
-				...action,
-				selected: selectedActionIds.includes(action.id)
-			};
+		_actions = actions.reduce(
+			(acc, action) => {
+				acc[action.id] = {
+					...action,
+					selected: selectedActionIds.includes(action.id!)
+				};
 
-			return acc;
-		}, {});
+				return acc;
+			},
+			{} as Record<string, FunctionModel & { selected: boolean }>
+		);
 	});
 </script>
 
@@ -50,7 +55,7 @@
 						</div>
 
 						<div class=" py-0.5 text-sm w-full capitalize font-medium">
-							<Tooltip content={_actions[action].meta.description}>
+							<Tooltip content={_actions[action].meta?.description}>
 								{_actions[action].name}
 							</Tooltip>
 						</div>

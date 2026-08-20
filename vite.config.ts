@@ -31,6 +31,25 @@ export default defineConfig({
 	},
 	// MPRA Zero-Copy: Cross-Origin Isolation for SharedArrayBuffer
 	server: {
+		port: 5175,
+		proxy: {
+			'/api': {
+				target: 'http://localhost:8080',
+				changeOrigin: true
+			},
+			'/ollama': {
+				target: 'http://localhost:8080',
+				changeOrigin: true
+			},
+			'/openai': {
+				target: 'http://localhost:8080',
+				changeOrigin: true
+			},
+			'/static': {
+				target: 'http://localhost:8080',
+				changeOrigin: true
+			}
+		},
 		headers: {
 			'Cross-Origin-Opener-Policy': 'same-origin',
 			'Cross-Origin-Embedder-Policy': 'require-corp'

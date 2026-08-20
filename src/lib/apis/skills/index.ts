@@ -1,4 +1,5 @@
 import { WEBUI_API_BASE_URL } from '$lib/constants';
+import { getOpenClawAvailableSkills } from '$lib/apis/openclaw';
 
 export const createNewSkill = async (token: string, skill: object) => {
 	let error = null;
@@ -59,6 +60,25 @@ export const getSkills = async (token: string = '') => {
 		throw error;
 	}
 
+	if (res && Array.isArray(res)) {
+		try {
+			const openclawSkills = await getOpenClawAvailableSkills(token);
+			if (openclawSkills && Array.isArray(openclawSkills)) {
+				return [...res, ...openclawSkills.map(s => ({
+					...s,
+					user: { name: 'OpenClaw', email: 'system@openclaw.engine' },
+					write_access: true,
+					content: `def get_skills():\n    return [{"name": "${s.id}", "description": "${s.description}"}]`,
+					description: s.meta?.description ?? s.description,
+					meta: { manifest: { version: 'OpenClaw Engine' } },
+					is_active: true
+				}))];
+			}
+		} catch (e) {
+			console.warn('Failed to load OpenClaw skills natively', e);
+		}
+	}
+
 	return res;
 };
 
@@ -88,6 +108,25 @@ export const getSkillList = async (token: string = '') => {
 
 	if (error) {
 		throw error;
+	}
+
+	if (res && Array.isArray(res)) {
+		try {
+			const openclawSkills = await getOpenClawAvailableSkills(token);
+			if (openclawSkills && Array.isArray(openclawSkills)) {
+				return [...res, ...openclawSkills.map(s => ({
+					...s,
+					user: { name: 'OpenClaw', email: 'system@openclaw.engine' },
+					write_access: true,
+					content: `def get_skills():\n    return [{"name": "${s.id}", "description": "${s.description}"}]`,
+					description: s.meta?.description ?? s.description,
+					meta: { manifest: { version: 'OpenClaw Engine' } },
+					is_active: true
+				}))];
+			}
+		} catch (e) {
+			console.warn('Failed to load OpenClaw skills natively', e);
+		}
 	}
 
 	return res;
@@ -131,6 +170,27 @@ export const getSkillItems = async (
 		throw error;
 	}
 
+	if (res && res.items && Array.isArray(res.items)) {
+		try {
+			const openclawSkills = await getOpenClawAvailableSkills(token);
+			if (openclawSkills && Array.isArray(openclawSkills)) {
+				const ocSkills = openclawSkills.map(s => ({
+					...s,
+					user: { name: 'OpenClaw', email: 'system@openclaw.engine' },
+					write_access: false,
+					description: s.meta?.description ?? s.description,
+					is_active: true
+				}));
+				res.items = [...res.items, ...ocSkills];
+				if (typeof res.total === 'number') {
+					res.total += ocSkills.length;
+				}
+			}
+		} catch (e) {
+			console.warn('Failed to load OpenClaw skills natively', e);
+		}
+	}
+
 	return res;
 };
 
@@ -167,6 +227,26 @@ export const exportSkills = async (token: string = '') => {
 
 export const getSkillById = async (token: string, id: string) => {
 	let error = null;
+
+	if (id && id.startsWith('openclaw.')) {
+		try {
+			const openclawSkills = await getOpenClawAvailableSkills(token);
+			const found = (openclawSkills || []).find((s: any) => s.id === id);
+			if (found) {
+				return {
+					...found,
+					user: { name: 'OpenClaw', email: 'system@openclaw.engine' },
+					write_access: true,
+					content: `def get_skills():\n    return [{"name": "${found.id}", "description": "${found.description}"}]`,
+					description: found.meta?.description ?? found.description,
+					meta: { manifest: { version: 'OpenClaw Engine' } },
+					is_active: true
+				};
+			}
+		} catch (e) {
+			console.warn('Failed to intercept skill id', e);
+		}
+	}
 
 	const res = await fetch(`${WEBUI_API_BASE_URL}/skills/id/${id}`, {
 		method: 'GET',

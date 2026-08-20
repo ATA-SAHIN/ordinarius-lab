@@ -13,6 +13,7 @@
 	import { toast } from 'svelte-sonner';
 
 	import { updateUserRole, getUsers, deleteUserById } from '$lib/apis/users';
+	import type { User } from '$lib/types';
 
 	import Pagination from '$lib/components/common/Pagination.svelte';
 	import ChatBubbles from '$lib/components/icons/ChatBubbles.svelte';
@@ -39,15 +40,15 @@
 
 	let page = 1;
 
-	let users = null;
-	let total = null;
+	let users: User[] | null = null;
+	let total: number | null = null;
 
 	let query = '';
-	let searchDebounceTimer: ReturnType<typeof setTimeout>;
+	let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 	let orderBy = 'created_at'; // default sort key
 	let direction = 'asc'; // default sort order
 
-	let selectedUser = null;
+	let selectedUser: User | null = null;
 
 	let showDeleteConfirmDialog = false;
 	let showAddUserModal = false;
@@ -55,14 +56,14 @@
 	let showUserChatsModal = false;
 	let showEditUserModal = false;
 
-	const deleteUserHandler = async (id) => {
+	const deleteUserHandler = async (id: string) => {
 		const res = await deleteUserById(localStorage.token, id).catch((error) => {
 			toast.error(`${error}`);
 			return null;
 		});
 
 		// if the user is deleted and the current page has only one user, go back to the previous page
-		if (users.length === 1 && page > 1) {
+		if (users && users.length === 1 && page > 1) {
 			page -= 1;
 		}
 
@@ -71,7 +72,7 @@
 		}
 	};
 
-	const setSortKey = (key) => {
+	const setSortKey = (key: string) => {
 		if (orderBy === key) {
 			direction = direction === 'asc' ? 'desc' : 'asc';
 		} else {
@@ -111,14 +112,18 @@
 	}
 
 	onDestroy(() => {
-		clearTimeout(searchDebounceTimer);
+		if (searchDebounceTimer) {
+			clearTimeout(searchDebounceTimer);
+		}
 	});
 </script>
 
 <ConfirmDialog
 	bind:show={showDeleteConfirmDialog}
 	on:confirm={() => {
-		deleteUserHandler(selectedUser.id);
+		if (selectedUser) {
+			deleteUserHandler(selectedUser.id);
+		}
 	}}
 />
 
@@ -147,10 +152,12 @@
 		<Banner
 			className="mx-0"
 			banner={{
+				id: 'license-error',
 				type: 'error',
 				title: 'License Error',
 				content:
-					'Exceeded the number of seats in your license. Please contact support to increase the number of seats.'
+					'Exceeded the number of seats in your license. Please contact support to increase the number of seats.',
+				timestamp: Math.floor(Date.now() / 1000)
 			}}
 		/>
 	</div>
@@ -349,7 +356,7 @@
 						</div>
 					</th>
 
-					<th scope="col" class="px-2.5 py-2 text-right" />
+					<th scope="col" class="px-2.5 py-2 text-right"></th>
 				</tr>
 			</thead>
 			<tbody class="">
@@ -360,6 +367,7 @@
 								class=" translate-y-0.5"
 								aria-label={$i18n.t('Change User Role')}
 								on:click={() => {
+									// @ts-ignore
 									selectedUser = user;
 									showEditUserModal = !showEditUserModal;
 								}}
@@ -406,7 +414,7 @@
 
 						<td class="px-3 py-1 text-right">
 							<div class="flex justify-end w-full">
-								{#if $config.features.enable_admin_chat_access && user.role !== 'admin'}
+								{#if $config?.features.enable_admin_chat_access && user.role !== 'admin'}
 									<Tooltip content={$i18n.t('Chats')}>
 										<button
 											class="self-center w-fit text-sm px-2 py-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-xl"
@@ -492,7 +500,7 @@
 {/if}
 
 {#if !$config?.license_metadata}
-	{#if total > 50}
+	{#if total && total > 50}
 		<div class="text-sm">
 			<Markdown
 				content={`

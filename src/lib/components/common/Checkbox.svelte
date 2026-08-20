@@ -2,11 +2,12 @@
 	import { createEventDispatcher } from 'svelte';
 	const dispatch = createEventDispatcher();
 
-	export let state = 'unchecked';
-	export let indeterminate = false;
-	export let disabled = false;
+	export let state: 'unchecked' | 'checked' | string = 'unchecked';
+	export let indeterminate: boolean = false;
+	export let disabled: boolean = false;
+	export let label: string = '';
 
-	export let disabledClassName = 'opacity-50 cursor-not-allowed';
+	export let disabledClassName: string = 'opacity-50 cursor-not-allowed';
 
 	let _state = 'unchecked';
 
@@ -38,6 +39,7 @@
 	}}
 	type="button"
 	{disabled}
+	aria-label={label || 'Checkbox'}
 >
 	<div class="top-0 left-0 absolute w-full flex justify-center">
 		{#if _state === 'checked'}

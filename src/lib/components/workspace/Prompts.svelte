@@ -15,6 +15,8 @@
 		getPromptTags
 	} from '$lib/apis/prompts';
 	import { capitalizeFirstLetter, slugify, copyToClipboard } from '$lib/utils';
+	import type { Prompt } from '$lib/types';
+	import type { Writable } from 'svelte/store';
 
 	import PromptMenu from './Prompts/PromptMenu.svelte';
 	import EllipsisHorizontal from '../icons/EllipsisHorizontal.svelte';
@@ -36,23 +38,23 @@
 
 	let shiftKey = false;
 
-	const i18n = getContext('i18n');
-	let promptsImportInputElement: HTMLInputElement;
+	const i18n = getContext<Writable<{ t: (k: string, p?: Record<string, any>) => string }>>('i18n');
+	let promptsImportInputElement: HTMLInputElement | undefined;
 	let loaded = false;
 
-	let importFiles = null;
+	let importFiles: FileList | null = null;
 	let query = '';
-	let searchDebounceTimer: ReturnType<typeof setTimeout>;
+	let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 
-	let prompts = null;
-	let tags = [];
-	let total = null;
+	let prompts: Prompt[] | null = null;
+	let tags: string[] = [];
+	let total: number | null = null;
 	let loading = false;
 
 	let showDeleteConfirm = false;
-	let deletePrompt = null;
+	let deletePrompt: Prompt | null = null;
 
-	let tagsContainerElement: HTMLDivElement;
+	let tagsContainerElement: HTMLDivElement | undefined;
 	let viewOption = '';
 	let selectedTag = '';
 	let copiedId: string | null = null;
@@ -108,28 +110,30 @@
 		}
 	};
 
-	const shareHandler = async (prompt) => {
+	const shareHandler = async (prompt: Prompt) => {
 		toast.success($i18n.t('Redirecting you to Open WebUI Community'));
 
 		const url = 'https://openwebui.com';
 
 		const tab = await window.open(`${url}/prompts/create`, '_blank');
-		window.addEventListener(
-			'message',
-			(event) => {
-				if (event.origin !== url) return;
-				if (event.data === 'loaded') {
-					tab.postMessage(JSON.stringify(prompt), '*');
-				}
-			},
-			false
-		);
+		if (tab) {
+			window.addEventListener(
+				'message',
+				(event) => {
+					if (event.origin !== url) return;
+					if (event.data === 'loaded') {
+						tab.postMessage(JSON.stringify(prompt), '*');
+					}
+				},
+				false
+			);
+		}
 	};
 
-	const cloneHandler = async (prompt) => {
+	const cloneHandler = async (prompt: Prompt) => {
 		const clonedPrompt = { ...prompt };
 
-		clonedPrompt.title = `${clonedPrompt.title} (Clone)`;
+		clonedPrompt.name = `${clonedPrompt.name} (Clone)`;
 		const baseCommand = clonedPrompt.command.startsWith('/')
 			? clonedPrompt.command.substring(1)
 			: clonedPrompt.command;
@@ -139,14 +143,14 @@
 		goto('/workspace/prompts/create');
 	};
 
-	const exportHandler = async (prompt) => {
+	const exportHandler = async (prompt: Prompt) => {
 		let blob = new Blob([JSON.stringify([prompt])], {
 			type: 'application/json'
 		});
 		saveAs(blob, `prompt-export-${Date.now()}.json`);
 	};
 
-	const copyHandler = async (prompt) => {
+	const copyHandler = async (prompt: Prompt) => {
 		const res = await copyToClipboard(prompt.content);
 		if (res) {
 			copiedId = prompt.command;
@@ -156,9 +160,10 @@
 		}
 	};
 
-	const deleteHandler = async (prompt) => {
+	const deleteHandler = async (prompt: Prompt) => {
 		const command = prompt.command;
 
+		if (!prompt.id) return;
 		const res = await deletePromptById(localStorage.token, prompt.id).catch((err) => {
 			toast.error(err);
 			return null;
@@ -172,17 +177,18 @@
 		getPromptList();
 	};
 
-	onMount(async () => {
+	onMount(() => {
 		viewOption = localStorage?.workspaceViewOption || '';
 		loaded = true;
+		getPromptList();
 
-		const onKeyDown = (event) => {
+		const onKeyDown = (event: KeyboardEvent) => {
 			if (event.key === 'Shift') {
 				shiftKey = true;
 			}
 		};
 
-		const onKeyUp = (event) => {
+		const onKeyUp = (event: KeyboardEvent) => {
 			if (event.key === 'Shift') {
 				shiftKey = false;
 			}
@@ -197,7 +203,6 @@
 		window.addEventListener('blur', onBlur);
 
 		return () => {
-			clearTimeout(searchDebounceTimer);
 			window.removeEventListener('keydown', onKeyDown);
 			window.removeEventListener('keyup', onKeyUp);
 			window.removeEventListener('blur', onBlur);
@@ -220,11 +225,13 @@
 		bind:show={showDeleteConfirm}
 		title={$i18n.t('Delete prompt?')}
 		on:confirm={() => {
-			deleteHandler(deletePrompt);
+			if (deletePrompt) {
+				deleteHandler(deletePrompt);
+			}
 		}}
 	>
 		<div class=" text-sm text-gray-500 truncate">
-			{$i18n.t('This will delete')} <span class="  font-medium">{deletePrompt.command}</span>.
+			{$i18n.t('This will delete')} <span class="  font-medium">{deletePrompt?.command}</span>.
 		</div>
 	</DeleteConfirmDialog>
 
@@ -241,8 +248,10 @@
 				if (!importFiles || importFiles.length === 0) return;
 
 				const reader = new FileReader();
-				reader.onload = async (event) => {
-					const savedPrompts = JSON.parse(event.target.result);
+				reader.onload = async (event: ProgressEvent<FileReader>) => {
+					const result = event.target?.result;
+					if (typeof result !== 'string') return;
+					const savedPrompts = JSON.parse(result);
 					console.log(savedPrompts);
 
 					try {
@@ -261,7 +270,7 @@
 						await getPromptList();
 					} finally {
 						importFiles = null;
-						promptsImportInputElement.value = '';
+						if (promptsImportInputElement) promptsImportInputElement.value = '';
 					}
 				};
 
@@ -284,7 +293,7 @@
 					<button
 						class="flex text-xs items-center space-x-1 px-3 py-1.5 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-gray-850 dark:hover:bg-gray-800 dark:text-gray-200 transition"
 						on:click={() => {
-							promptsImportInputElement.click();
+							promptsImportInputElement?.click();
 						}}
 					>
 						<div class=" self-center font-medium line-clamp-1">
@@ -474,7 +483,7 @@
 										cloneHandler(prompt);
 									}}
 									exportHandler={() => {
-										exportHandler(prompt);
+										if (prompt.id) exportHandler(prompt);
 									}}
 									deleteHandler={async () => {
 										deletePrompt = prompt;
@@ -497,7 +506,7 @@
 										<Switch
 											bind:state={prompt.is_active}
 											on:change={async () => {
-												togglePromptById(localStorage.token, prompt.id);
+												togglePromptById(localStorage.token, prompt.id as string);
 											}}
 										/>
 									</Tooltip>
@@ -508,7 +517,7 @@
 				{/each}
 			</div>
 
-			{#if total > 30}
+			{#if total !== null && total > 30}
 				<div class="flex justify-center mt-4 mb-2">
 					<Pagination bind:page count={total} perPage={30} />
 				</div>

@@ -2,27 +2,47 @@
 	import Checkbox from '$lib/components/common/Checkbox.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import { getContext, onMount } from 'svelte';
-
+	import type { Writable } from 'svelte/store';
+	import type { OpenClawSkillItem } from '$lib/types';
 	import { getSkillItems } from '$lib/apis/skills';
 
 	export let selectedSkillIds: string[] = [];
+	export let skills: OpenClawSkillItem[] | null = null;
 
-	let _skills: Record<string, any> = {};
+	let _skills: Record<string, OpenClawSkillItem & { selected: boolean }> = {};
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<{ t: (k: string) => string }>>('i18n');
+
+	const initSkills = (skillItems: OpenClawSkillItem[]) => {
+		_skills = skillItems.reduce(
+			(
+				acc: Record<string, OpenClawSkillItem & { selected: boolean }>,
+				skill: OpenClawSkillItem
+			) => {
+				acc[skill.id] = {
+					...skill,
+					selected: selectedSkillIds.includes(skill.id)
+				};
+				return acc;
+			},
+			{} as Record<string, OpenClawSkillItem & { selected: boolean }>
+		);
+	};
+
+	let fetchedFallback: OpenClawSkillItem[] | null = null;
 
 	onMount(async () => {
-		const res = await getSkillItems(localStorage.token).catch(() => null);
-		const skills = res?.items ?? [];
-		_skills = skills.reduce((acc: Record<string, any>, skill: any) => {
-			acc[skill.id] = {
-				...skill,
-				selected: selectedSkillIds.includes(skill.id)
-			};
-
-			return acc;
-		}, {});
+		if (!skills) {
+			const res = await getSkillItems(localStorage.token).catch(() => null);
+			fetchedFallback = res?.items ?? [];
+		}
 	});
+
+	/** Parent passes OpenClaw catalog; refresh when list or selection changes (aligned with ToolsSelector). */
+	$: {
+		const list = skills ?? fetchedFallback ?? [];
+		initSkills(list);
+	}
 </script>
 
 <div>
@@ -33,7 +53,7 @@
 	<div class="flex flex-col mb-1">
 		{#if Object.keys(_skills).length > 0}
 			<div class=" flex items-center flex-wrap">
-				{#each Object.keys(_skills) as skill, skillIdx}
+				{#each Object.keys(_skills) as skill}
 					<div class=" flex items-center gap-2 mr-3">
 						<div class="self-center flex items-center">
 							<Checkbox

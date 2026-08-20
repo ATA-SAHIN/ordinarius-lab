@@ -26,16 +26,19 @@
 	import PromptHistoryMenu from './PromptHistoryMenu.svelte';
 	import Badge from '$lib/components/common/Badge.svelte';
 	import Tags from '$lib/components/common/Tags.svelte';
+	import type { Prompt, PromptHistoryItem, AccessGrant } from '$lib/types';
+	import type { Writable } from 'svelte/store';
 
 	dayjs.extend(localizedFormat);
 
-	export let onSubmit: Function;
+	export let onSubmit: (prompt: any) => Promise<void>;
 	export let edit = false;
-	export let prompt = null;
+	export let prompt: Prompt | null = null;
 	export let clone = false;
+	clone; // Mark as used
 	export let disabled = false;
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<{ t: (k: string, p?: Record<string, any>) => string }>>('i18n');
 
 	let loading = false;
 	let showEditModal = false;
@@ -43,17 +46,17 @@
 	let name = '';
 	let command = '';
 	let content = '';
-	let tags = [];
+	let tags: { name: string }[] = [];
 	let commitMessage = '';
 	let isProduction = true;
 
-	let accessGrants = [];
+	let accessGrants: AccessGrant[] = [];
 	let showAccessControlModal = false;
 	let hasManualEdit = false;
 
-	let history: any[] = [];
+	let history: PromptHistoryItem[] = [];
 	let historyLoading = false;
-	let selectedHistoryEntry: any = null;
+	let selectedHistoryEntry: PromptHistoryItem | null = null;
 	let historyPage = 0;
 	let historyHasMore = true;
 	let contentCopied = false;
@@ -61,10 +64,10 @@
 	// For debounced auto-save of name/command
 	let originalName = '';
 	let originalCommand = '';
-	let originalTags = [];
+	let originalTags: { name: string }[] = [];
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-	let suggestionTags = [];
+	let suggestionTags: { name: string }[] = [];
 
 	$: if (!edit && !hasManualEdit) {
 		command = name !== '' ? slugify(name) : '';
@@ -109,7 +112,7 @@
 		loading = false;
 	};
 
-	const validateCommandString = (inputString) => {
+	const validateCommandString = (inputString: string) => {
 		const regex = /^[a-zA-Z0-9-_]+$/;
 		return regex.test(inputString);
 	};
@@ -130,9 +133,9 @@
 			const newEntries = await getPromptHistory(localStorage.token, prompt.id, historyPage);
 
 			if (reset) {
-				history = newEntries;
+				history = newEntries as PromptHistoryItem[];
 			} else {
-				history = [...history, ...newEntries];
+				history = [...history, ...newEntries] as PromptHistoryItem[];
 			}
 
 			historyHasMore = newEntries.length > 0;
@@ -165,13 +168,14 @@
 		}
 	};
 
-	const setAsProduction = async (historyEntry: any) => {
+	const setAsProduction = async (historyEntry: PromptHistoryItem) => {
 		if (disabled) {
 			toast.error($i18n.t('You do not have permission to edit this prompt.'));
 			return;
 		}
 
 		try {
+			if (!prompt?.id) return;
 			await setProductionPromptVersion(localStorage.token, prompt.id, historyEntry.id);
 			// Update local prompt object to trigger reactivity
 			prompt = { ...prompt, version_id: historyEntry.id };
@@ -182,7 +186,7 @@
 	};
 
 	const handleDeleteHistory = async (historyId: string) => {
-		if (disabled) return;
+		if (disabled || !prompt?.id) return;
 
 		try {
 			await deletePromptHistoryVersion(localStorage.token, prompt.id, historyId);
@@ -223,9 +227,10 @@
 			}
 
 			try {
+				if (!prompt?.id) return;
 				await updatePromptMetadata(
 					localStorage.token,
-					prompt?.id,
+					prompt.id,
 					name,
 					command,
 					tags.map((tag) => tag.name)
@@ -251,8 +256,10 @@
 			await tick();
 			command = prompt.command.at(0) === '/' ? prompt.command.slice(1) : prompt.command;
 			content = prompt.content;
-			tags = (prompt.tags || []).map((tag) => ({ name: tag }));
-			accessGrants = prompt?.access_grants === undefined ? [] : prompt?.access_grants;
+			tags = ((prompt.tags as any[]) || []).map((tag) =>
+				typeof tag === 'string' ? { name: tag } : tag
+			);
+			accessGrants = prompt?.access_grants ?? [];
 
 			// Store originals for revert on collision
 			originalName = name;
@@ -263,7 +270,8 @@
 				await loadHistory();
 				// Auto-select production version
 				if (prompt.version_id && history.length > 0) {
-					selectedHistoryEntry = history.find((h) => h.id === prompt.version_id) || history[0];
+					selectedHistoryEntry =
+						history.find((h) => h.id === (prompt as any).version_id) || history[0];
 				} else if (history.length > 0) {
 					selectedHistoryEntry = history[0];
 				}
@@ -272,7 +280,7 @@
 
 		const res = await getPromptTags(localStorage.token);
 		if (res) {
-			suggestionTags = res.map((tag) => ({ name: tag }));
+			suggestionTags = res.map((tag: string) => ({ name: tag }));
 		}
 	});
 </script>
@@ -321,7 +329,7 @@
 						className="text-sm w-full bg-transparent outline-hidden overflow-y-hidden resize-none"
 						placeholder={$i18n.t('Write a summary in 50 words that summarizes {{topic}}.')}
 						bind:value={content}
-						aria-label={$i18n.t('Prompt Content')}
+						ariaLabel={$i18n.t('Prompt Content')}
 						rows={6}
 						required
 					/>
@@ -427,11 +435,13 @@
 						<button
 							class="text-xs text-gray-500 font-mono px-2 py-1 rounded-lg cursor-pointer hover:underline transition"
 							on:click={() => {
-								copyToClipboard(prompt.id);
-								toast.success($i18n.t('ID copied to clipboard'));
+								if (prompt) {
+									copyToClipboard(prompt.id);
+									toast.success($i18n.t('ID copied to clipboard'));
+								}
 							}}
 						>
-							{prompt.id}
+							{prompt?.id || ''}
 						</button>
 					</Tooltip>
 				</div>
@@ -444,11 +454,11 @@
 					{tags}
 					{disabled}
 					{suggestionTags}
-					on:add={(e) => {
+					on:add={(e: CustomEvent<string>) => {
 						tags = [...tags, { name: e.detail }];
 						debouncedSaveMetadata();
 					}}
-					on:delete={(e) => {
+					on:delete={(e: CustomEvent<string>) => {
 						tags = tags.filter((tag) => tag.name !== e.detail);
 						debouncedSaveMetadata();
 					}}
@@ -487,14 +497,18 @@
 							{:else}
 								<button
 									class="text-xs text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:underline transition"
-									on:click={() => setAsProduction(selectedHistoryEntry)}
+									on:click={() => {
+										if (selectedHistoryEntry) setAsProduction(selectedHistoryEntry);
+									}}
 								>
 									{$i18n.t('Set as Production')}
 								</button>
 							{/if}
 							<PromptHistoryMenu
 								isProduction={selectedHistoryEntry.id === prompt?.version_id}
-								onDelete={() => handleDeleteHistory(selectedHistoryEntry.id)}
+								onDelete={() => {
+									if (selectedHistoryEntry) handleDeleteHistory(selectedHistoryEntry.id);
+								}}
 								onClose={() => {}}
 							/>
 						</div>
@@ -570,10 +584,10 @@
 							<Tags
 								{tags}
 								{suggestionTags}
-								on:add={(e) => {
+								on:add={(e: CustomEvent<string>) => {
 									tags = [...tags, { name: e.detail }];
 								}}
-								on:delete={(e) => {
+								on:delete={(e: CustomEvent<string>) => {
 									tags = tags.filter((tag) => tag.name !== e.detail);
 								}}
 							/>
@@ -655,7 +669,7 @@
 										src={`/api/v1/users/${entry.user.id}/profile/image`}
 										alt={entry.user.name}
 										class="size-3 rounded-full mr-0.5"
-										on:error={(e) => (e.target.src = '/user.png')}
+										on:error={(e) => ((e.target as HTMLImageElement).src = '/user.png')}
 									/>
 									<span class="truncate">{entry.user.name}</span>
 									<span>•</span>

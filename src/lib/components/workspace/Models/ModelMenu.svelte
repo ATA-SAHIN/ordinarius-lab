@@ -2,6 +2,7 @@
 	import { DropdownMenu } from 'bits-ui';
 	import { flyAndScale } from '$lib/utils/transitions';
 	import { getContext } from 'svelte';
+	import type { Writable } from 'svelte/store';
 
 	import Dropdown from '$lib/components/common/Dropdown.svelte';
 	import GarbageBin from '$lib/components/icons/GarbageBin.svelte';
@@ -19,21 +20,21 @@
 	import { config, user as currentUser, settings } from '$lib/stores';
 	import Link from '$lib/components/icons/Link.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<{ t: (k: string) => string }>>('i18n');
 
-	export let user;
-	export let model;
+	export let user: any;
+	export let model: any;
 
-	export let editHandler: Function;
-	export let shareHandler: Function;
-	export let cloneHandler: Function;
-	export let exportHandler: Function;
-	export let copyLinkHandler: Function;
+	export let editHandler: () => void;
+	export let shareHandler: () => void;
+	export let cloneHandler: () => void;
+	export let exportHandler: () => void;
+	export let copyLinkHandler: () => void;
 
-	export let hideHandler: Function;
-	export let pinModelHandler: Function;
-	export let deleteHandler: Function;
-	export let onClose: Function;
+	export let hideHandler: () => void;
+	export let pinModelHandler: (id: string) => void;
+	export let deleteHandler: () => void;
+	export let onClose: () => void;
 
 	export let writeAccess: boolean = true;
 
@@ -125,9 +126,9 @@
 
 					<div class="flex items-center">
 						{#if model?.meta?.hidden ?? false}
-							{$i18n.t('Show Model')}
+							{$i18n.t('Show profile')}
 						{:else}
-							{$i18n.t('Hide Model')}
+							{$i18n.t('Hide profile')}
 						{/if}
 					</div>
 				</DropdownMenu.Item>

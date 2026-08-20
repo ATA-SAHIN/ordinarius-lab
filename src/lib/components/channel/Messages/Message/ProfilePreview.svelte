@@ -1,16 +1,18 @@
 <script lang="ts">
 	import { LinkPreview } from 'bits-ui';
 	import { getContext } from 'svelte';
+	import type { User } from '$lib/types';
 
 	const i18n = getContext('i18n');
 	import UserStatus from './UserStatus.svelte';
 	import UserStatusLinkPreview from './UserStatusLinkPreview.svelte';
 
-	export let user = null;
+	export let id: string | null = null;
+	export let user: User | null = null;
 
-	export let align = 'center';
-	export let side = 'right';
-	export let sideOffset = 8;
+	export let side: 'top' | 'right' | 'bottom' | 'left' = 'right';
+	export let align: 'start' | 'center' | 'end' = 'center';
+	export let sideOffset = 4;
 
 	let openPreview = false;
 </script>

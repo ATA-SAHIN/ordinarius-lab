@@ -42,12 +42,12 @@ export const getModels = async (
 	let models = res?.data ?? [];
 
 	if (connections && !base) {
-		let localModels = [];
+		let localModels: any[] = [];
 
 		if (connections) {
-			const OPENAI_API_BASE_URLS = connections.OPENAI_API_BASE_URLS;
-			const OPENAI_API_KEYS = connections.OPENAI_API_KEYS;
-			const OPENAI_API_CONFIGS = connections.OPENAI_API_CONFIGS;
+			const OPENAI_API_BASE_URLS = (connections as any).OPENAI_API_BASE_URLS;
+			const OPENAI_API_KEYS = (connections as any).OPENAI_API_KEYS;
+			const OPENAI_API_CONFIGS = (connections as any).OPENAI_API_CONFIGS;
 
 			const requests = [];
 			for (const idx in OPENAI_API_BASE_URLS) {
@@ -63,7 +63,7 @@ export const getModels = async (
 						if (modelIds.length > 0) {
 							const modelList = {
 								object: 'list',
-								data: modelIds.map((modelId) => ({
+								data: modelIds.map((modelId: string) => ({
 									id: modelId,
 									name: modelId,
 									owned_by: 'openai',
@@ -115,7 +115,7 @@ export const getModels = async (
 				const apiConfig = OPENAI_API_CONFIGS[idx.toString()] ?? {};
 
 				let models = Array.isArray(response) ? response : (response?.data ?? []);
-				models = models.map((model) => ({ ...model, openai: { id: model.id }, urlIdx: idx }));
+				models = models.map((model: any) => ({ ...model, openai: { id: model.id }, urlIdx: idx }));
 
 				const prefixId = apiConfig.prefix_id;
 				if (prefixId) {
@@ -144,7 +144,7 @@ export const getModels = async (
 		);
 
 		// Remove duplicates
-		const modelsMap = {};
+		const modelsMap: Record<string, any> = {};
 		for (const model of models) {
 			modelsMap[model.id] = model;
 		}
@@ -342,15 +342,15 @@ export const getToolServersData = async (servers: object[]) => {
 	return (
 		await Promise.all(
 			servers
-				.filter((server) => server?.config?.enable)
-				.map(async (server) => {
+				.filter((server: any) => server?.config?.enable)
+				.map(async (server: any) => {
 					let error = null;
 
 					let toolServerToken = null;
 
-					const auth_type = server?.auth_type ?? 'bearer';
+					const auth_type = (server as any)?.auth_type ?? 'bearer';
 					if (auth_type === 'bearer') {
-						toolServerToken = server?.key;
+						toolServerToken = (server as any)?.key;
 					} else if (auth_type === 'none') {
 						// No authentication
 					} else if (auth_type === 'session') {
@@ -358,21 +358,21 @@ export const getToolServersData = async (servers: object[]) => {
 					}
 
 					let res = null;
-					const specType = server?.spec_type ?? 'url';
+					const specType = (server as any)?.spec_type ?? 'url';
 
 					if (specType === 'url') {
 						res = await getToolServerData(
 							toolServerToken,
-							(server?.path ?? '').includes('://')
-								? server?.path
-								: `${server?.url}${(server?.path ?? '').startsWith('/') ? '' : '/'}${server?.path}`
+							((server as any)?.path ?? '').includes('://')
+								? (server as any)?.path
+								: `${(server as any)?.url}${((server as any)?.path ?? '').startsWith('/') ? '' : '/'}${(server as any)?.path}`
 						).catch((err) => {
 							error = err;
 							return null;
 						});
-					} else if ((specType === 'json' && server?.spec) ?? null) {
+					} else if ((specType === 'json' && (server as any)?.spec) ?? null) {
 						try {
-							res = JSON.parse(server?.spec);
+							res = JSON.parse((server as any)?.spec);
 						} catch (e) {
 							error = 'Failed to parse JSON spec';
 						}
@@ -382,7 +382,7 @@ export const getToolServersData = async (servers: object[]) => {
 						if (!res.paths) {
 							return {
 								error: 'Invalid OpenAPI spec',
-								url: server?.url
+								url: (server as any)?.url
 							};
 						}
 
@@ -393,7 +393,7 @@ export const getToolServersData = async (servers: object[]) => {
 						};
 
 						return {
-							url: server?.url,
+							url: (server as any)?.url,
 							openapi: openapi,
 							info: info,
 							specs: specs
@@ -401,7 +401,7 @@ export const getToolServersData = async (servers: object[]) => {
 					} else if (error) {
 						return {
 							error,
-							url: server?.url
+							url: (server as any)?.url
 						};
 					} else {
 						return null;
@@ -513,7 +513,7 @@ export const executeToolServer = async (
 		}
 
 		// make a clone of res and extract headers
-		const responseHeaders = {};
+		const responseHeaders: Record<string, string> = {};
 		res.headers.forEach((value, key) => {
 			responseHeaders[key] = value;
 		});
@@ -1675,11 +1675,20 @@ export interface ModelConfig {
 export interface ModelMeta {
 	toolIds: never[];
 	description?: string;
-	capabilities?: object;
+	capabilities?: {
+		status_updates?: boolean;
+		[key: string]: any;
+	};
 	profile_image_url?: string;
+	defaultFilterIds?: string[];
+	defaultFeatureIds?: string[];
+	hidden?: boolean;
+	tts?: {
+		voice?: string;
+	};
 }
 
-export interface ModelParams {}
+export interface ModelParams { }
 
 export type GlobalModelConfig = ModelConfig[];
 

@@ -4,6 +4,7 @@
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import Plus from '$lib/components/icons/Plus.svelte';
 	import { getContext } from 'svelte';
+	import type { ModelAdvancedParams } from '$lib/types';
 
 	const i18n = getContext('i18n');
 
@@ -44,10 +45,11 @@
 		num_ctx: null,
 		num_batch: null,
 		num_thread: null,
-		num_gpu: null
+		num_gpu: null,
+		custom_params: {}
 	};
 
-	export let params = defaultParams;
+	export let params: ModelAdvancedParams = defaultParams as ModelAdvancedParams;
 	$: if (params) {
 		onChange(params);
 	}
@@ -194,7 +196,10 @@
 					on:click={() => {
 						if ((params?.reasoning_tags ?? null) === null) {
 							params.reasoning_tags = ['', ''];
-						} else if ((params?.reasoning_tags ?? []).length === 2) {
+						} else if (
+							Array.isArray(params?.reasoning_tags) &&
+							(params?.reasoning_tags ?? []).length === 2
+						) {
 							params.reasoning_tags = true;
 						} else if ((params?.reasoning_tags ?? null) !== false) {
 							params.reasoning_tags = false;
@@ -216,7 +221,7 @@
 			</div>
 		</Tooltip>
 
-		{#if ![true, false, null].includes(params?.reasoning_tags ?? null) && (params?.reasoning_tags ?? []).length === 2}
+		{#if Array.isArray(params?.reasoning_tags) && (params?.reasoning_tags ?? []).length === 2}
 			<div class="flex mt-0.5 space-x-2">
 				<div class=" flex-1">
 					<input
@@ -1306,7 +1311,13 @@
 				<Textarea
 					className="w-full  text-sm bg-transparent outline-hidden"
 					placeholder={$i18n.t('e.g. "json" or a JSON schema')}
-					bind:value={params.format}
+					value={params.format ?? ''}
+					on:input={(e) => {
+						const target = e.target as HTMLTextAreaElement | HTMLInputElement;
+						if (target) {
+							params.format = target.value === '' ? null : target.value;
+						}
+					}}
 				/>
 			</div>
 		{/if}
@@ -1640,7 +1651,7 @@
 									placeholder={$i18n.t('Custom Parameter Name')}
 									value={key}
 									on:change={(e) => {
-										const newKey = e.target.value.trim();
+										const newKey = (e.target as HTMLInputElement).value.trim();
 										if (newKey && newKey !== key) {
 											params.custom_params[newKey] = params.custom_params[key];
 											delete params.custom_params[key];

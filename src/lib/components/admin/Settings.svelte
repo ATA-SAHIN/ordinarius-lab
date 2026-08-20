@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import { getContext, tick, onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
@@ -21,6 +21,7 @@
 	import Evaluations from './Settings/Evaluations.svelte';
 	import CodeExecution from './Settings/CodeExecution.svelte';
 	import Integrations from './Settings/Integrations.svelte';
+	import OpenClaw from './Settings/OpenClaw.svelte';
 
 	import ChartBar from '../icons/ChartBar.svelte';
 	import DocumentChartBar from '../icons/DocumentChartBar.svelte';
@@ -48,7 +49,8 @@
 			'audio',
 			'images',
 			'pipelines',
-			'db'
+			'db',
+			'openclaw'
 		].includes(tabFromPath)
 			? tabFromPath
 			: 'general';
@@ -59,7 +61,7 @@
 		scrollToTab(selectedTab);
 	}
 
-	const scrollToTab = (tabId) => {
+	const scrollToTab = (tabId: string) => {
 		const tabElement = document.getElementById(tabId);
 		if (tabElement) {
 			tabElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
@@ -67,8 +69,8 @@
 	};
 
 	let search = '';
-	let searchDebounceTimeout;
-	let filteredSettings = [];
+	let searchDebounceTimeout: ReturnType<typeof setTimeout> | undefined;
+	let filteredSettings: any[] = [];
 
 	const allSettings = [
 		{
@@ -243,6 +245,21 @@
 			title: 'Database',
 			route: '/admin/settings/db',
 			keywords: ['database', 'export', 'import', 'backup', 'chats', 'users']
+		},
+		{
+			id: 'openclaw',
+			title: 'OpenClaw Engine',
+			route: '/admin/settings/openclaw',
+			keywords: [
+				'openclaw',
+				'gateway',
+				'engine',
+				'sandbox',
+				'commands',
+				'memory',
+				'agent',
+				'advanced'
+			]
 		}
 	];
 
@@ -271,7 +288,7 @@
 		const containerElement = document.getElementById('admin-settings-tabs-container');
 
 		if (containerElement) {
-			containerElement.addEventListener('wheel', function (event) {
+			containerElement.addEventListener('wheel', function (event: WheelEvent) {
 				if (event.deltaY !== 0) {
 					// Adjust horizontal scroll position based on vertical scroll
 					containerElement.scrollLeft += event.deltaY;
@@ -496,6 +513,19 @@
 								d="M8 12.5c1.84 0 3.579-.37 4.914-1.037.366-.183.74-.41 1.086-.684V12c0 1.657-2.686 3-6 3s-6-1.343-6-3v-1.22c.346.273.72.5 1.087.683C4.42 12.131 6.16 12.5 8 12.5Z"
 							/>
 						</svg>
+					{:else if tab.id === 'openclaw'}
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							viewBox="0 0 24 24"
+							fill="currentColor"
+							class="w-4 h-4"
+						>
+							<path
+								fill-rule="evenodd"
+								d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25Zm0 1.5a8.25 8.25 0 1 0 0 16.5 8.25 8.25 0 0 0 0-16.5ZM12 8.25a.75.75 0 0 1 .75.75v2.25h2.25a.75.75 0 0 1 0 1.5h-2.25v2.25a.75.75 0 0 1-1.5 0v-2.25H9a.75.75 0 0 1 0-1.5h2.25V9a.75.75 0 0 1 .75-.75Z"
+								clip-rule="evenodd"
+							/>
+						</svg>
 					{/if}
 				</div>
 				<div class=" self-center">{$i18n.t(tab.title)}</div>
@@ -580,6 +610,12 @@
 			/>
 		{:else if selectedTab === 'pipelines'}
 			<Pipelines
+				saveHandler={() => {
+					toast.success($i18n.t('Settings saved successfully!'));
+				}}
+			/>
+		{:else if selectedTab === 'openclaw'}
+			<OpenClaw
 				saveHandler={() => {
 					toast.success($i18n.t('Settings saved successfully!'));
 				}}

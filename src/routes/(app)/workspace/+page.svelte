@@ -8,7 +8,7 @@
 			if ($user?.permissions?.workspace?.models) {
 				goto('/workspace/models');
 			} else if ($user?.permissions?.workspace?.knowledge) {
-				goto('/workspace/knowledge');
+				goto('/workspace/memory');
 			} else if ($user?.permissions?.workspace?.prompts) {
 				goto('/workspace/prompts');
 			} else if ($user?.permissions?.workspace?.tools) {

@@ -1,12 +1,13 @@
-<script>
-	import { toast } from 'svelte-sonner';
+<script lang="ts">
 	import { getContext, onMount, tick } from 'svelte';
-
-	const i18n = getContext('i18n');
+	import { toast } from 'svelte-sonner';
+	import type { Writable } from 'svelte/store';
+	const i18n = getContext<Writable<{ t: (k: string, p?: Record<string, any>) => string }>>('i18n');
 
 	import { goto } from '$app/navigation';
 	import { user } from '$lib/stores';
 	import { updateToolAccessGrants } from '$lib/apis/tools';
+	import type { AccessGrant } from '$lib/types';
 
 	import CodeEditor from '$lib/components/common/CodeEditor.svelte';
 	import ConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
@@ -15,7 +16,7 @@
 	import LockClosed from '$lib/components/icons/LockClosed.svelte';
 	import AccessControlModal from '../common/AccessControlModal.svelte';
 
-	let formElement = null;
+	let formElement: HTMLFormElement | null = null;
 	let loading = false;
 
 	let showConfirm = false;
@@ -24,15 +25,15 @@
 	export let edit = false;
 	export let clone = false;
 
-	export let onSave = () => {};
+	export let onSave: (data: any) => void = () => {};
 
 	export let id = '';
 	export let name = '';
-	export let meta = {
+	export let meta: { description: string; [key: string]: any } = {
 		description: ''
 	};
 	export let content = '';
-	export let accessGrants = [];
+	export let accessGrants: AccessGrant[] = [];
 
 	let _content = '';
 
@@ -48,7 +49,7 @@
 		id = name.replace(/\s+/g, '_').toLowerCase();
 	}
 
-	let codeEditor;
+	let codeEditor: any;
 	let boilerplate = `import os
 import requests
 from datetime import datetime
@@ -309,9 +310,9 @@ class Tools:
 						value={content}
 						lang="python"
 						{boilerplate}
-						onChange={(e) => {
-							_content = e;
-						}}
+						onChange={((value: string) => {
+							_content = value;
+						}) as any}
 						onSave={async () => {
 							if (formElement) {
 								formElement.requestSubmit();

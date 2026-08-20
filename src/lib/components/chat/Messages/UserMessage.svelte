@@ -7,6 +7,8 @@
 	import { user as _user } from '$lib/stores';
 	import { copyToClipboard as _copyToClipboard, formatDate } from '$lib/utils';
 	import { WEBUI_API_BASE_URL, WEBUI_BASE_URL } from '$lib/constants';
+	import type { ChatHistory, ChatMessage, MessageFile } from '$lib/types/chat';
+	import type { User } from '$lib/types';
 
 	import Name from './Name.svelte';
 	import ProfileImage from './ProfileImage.svelte';
@@ -21,25 +23,29 @@
 	const i18n = getContext('i18n');
 	dayjs.extend(localizedFormat);
 
-	export let user;
+	export let user: User;
 
-	export let chatId;
-	export let history;
-	export let messageId;
+	export let chatId: string;
+	export let history: ChatHistory;
+	export let messageId: string;
 
-	export let siblings;
+	export let siblings: string[];
 
-	export let gotoMessage: Function;
-	export let showPreviousMessage: Function;
-	export let showNextMessage: Function;
+	export let gotoMessage: (message: ChatMessage, index?: number) => void;
+	export let showPreviousMessage: (message: ChatMessage) => void;
+	export let showNextMessage: (message: ChatMessage) => void;
 
-	export let editMessage: Function;
-	export let deleteMessage: Function;
+	export let editMessage: (
+		id: string,
+		data: { content: string; files?: MessageFile[] },
+		submit?: boolean
+	) => void = () => {};
+	export let deleteMessage: (id: string) => void = () => {};
 
 	export let isFirstMessage: boolean;
 	export let readOnly: boolean;
-	export let editCodeBlock = true;
-	export let topPadding = false;
+	export let editCodeBlock: boolean = true;
+	export let topPadding: boolean = false;
 
 	let showDeleteConfirm = false;
 
@@ -47,7 +53,7 @@
 
 	let edit = false;
 	let editedContent = '';
-	let editedFiles = [];
+	let editedFiles: MessageFile[] = [];
 
 	let messageEditTextAreaElement: HTMLTextAreaElement;
 	let editScrollContainer: HTMLDivElement;
@@ -64,7 +70,7 @@
 		}
 	}
 
-	const copyToClipboard = async (text) => {
+	const copyToClipboard = async (text: string) => {
 		const res = await _copyToClipboard(text);
 		if (res) {
 			toast.success($i18n.t('Copying to clipboard was successful!'));
@@ -74,7 +80,7 @@
 	const editMessageHandler = async () => {
 		edit = true;
 		editedContent = message?.content ?? '';
-		editedFiles = message.files;
+		editedFiles = message.files ?? [];
 
 		await tick();
 
@@ -85,7 +91,8 @@
 			messageEditTextAreaElement.style.height = '';
 			messageEditTextAreaElement.style.height = `${messageEditTextAreaElement.scrollHeight}px`;
 
-			if (messagesContainer) messagesContainer.scrollTop = savedScrollTop;
+			if (messagesContainer && savedScrollTop !== undefined)
+				messagesContainer.scrollTop = savedScrollTop;
 			messageEditTextAreaElement?.focus({ preventScroll: true });
 		}
 	};
@@ -128,14 +135,14 @@
 
 <div
 	class=" flex w-full user-message group"
-	dir={$settings.chatDirection}
+	dir={$settings.chatDirection?.toLowerCase() as 'ltr' | 'rtl' | 'auto'}
 	id="message-{message.id}"
 	style="scroll-margin-top: 3rem;"
 >
 	{#if !($settings?.chatBubble ?? true)}
 		<div class={`shrink-0 ltr:mr-3 rtl:ml-3 mt-1`}>
 			<ProfileImage
-				src={`${WEBUI_API_BASE_URL}/users/${user.id}/profile/image`}
+				src={`${WEBUI_API_BASE_URL}/users/${user?.id}/profile/image`}
 				className={'size-8 user-message-profile-image'}
 			/>
 		</div>
@@ -147,8 +154,8 @@
 					{#if message.user}
 						{$i18n.t('You')}
 						<span class=" text-gray-500 text-sm font-medium">{message?.user ?? ''}</span>
-					{:else if $settings.showUsername || $_user.name !== user.name}
-						{user.name}
+					{:else if $settings.showUsername || $_user?.name !== user?.name}
+						{user?.name}
 					{:else}
 						{$i18n.t('You')}
 					{/if}
@@ -201,7 +208,7 @@
 				{#if message.files}
 					<div
 						class="mb-1 w-full flex flex-col justify-end overflow-x-auto gap-1 flex-wrap"
-						dir={$settings?.chatDirection ?? 'auto'}
+						dir={($settings?.chatDirection?.toLowerCase() as 'ltr' | 'rtl' | 'auto') ?? 'auto'}
 					>
 						{#each message.files as file}
 							{@const fileUrl =
@@ -214,10 +221,9 @@
 								{:else}
 									<FileItem
 										item={file}
-										url={file.url}
 										name={file.name}
-										type={file.type}
-										size={file?.size}
+										type={file.type ?? 'file'}
+										size={file?.size ?? 0}
 										small={true}
 									/>
 								{/if}
@@ -246,12 +252,13 @@
 											/>
 										</div>
 										<div class=" absolute -top-1 -right-1">
-											<button
+								         <button
 												class=" bg-white text-black border border-white rounded-full {($settings?.highContrastMode ??
 												false)
 													? ''
 													: 'group-hover:visible invisible transition'}"
 												type="button"
+												aria-label={$i18n.t('Remove file')}
 												on:click={() => {
 													editedFiles.splice(fileIdx, 1);
 
@@ -275,8 +282,8 @@
 									<FileItem
 										item={file}
 										name={file.name}
-										type={file.type}
-										size={file?.size}
+										type={file.type ?? 'file'}
+										size={file?.size ?? 0}
 										loading={file.status === 'uploading'}
 										dismissible={true}
 										edit={true}
@@ -301,15 +308,18 @@
 							class=" bg-transparent outline-hidden w-full resize-none"
 							bind:value={editedContent}
 							on:input={(e) => {
+								const target = e.target as HTMLTextAreaElement;
 								const messagesContainer = document.getElementById('messages-container');
 								const savedScrollTop = messagesContainer?.scrollTop;
 								const savedInnerScroll = editScrollContainer?.scrollTop;
 
-								e.target.style.height = '';
-								e.target.style.height = `${e.target.scrollHeight}px`;
+								target.style.height = '';
+								target.style.height = `${target.scrollHeight}px`;
 
-								if (messagesContainer) messagesContainer.scrollTop = savedScrollTop;
-								if (editScrollContainer) editScrollContainer.scrollTop = savedInnerScroll;
+								if (messagesContainer && savedScrollTop !== undefined)
+									messagesContainer.scrollTop = savedScrollTop;
+								if (editScrollContainer && savedInnerScroll !== undefined)
+									editScrollContainer.scrollTop = savedInnerScroll;
 							}}
 							on:keydown={(e) => {
 								if (e.key === 'Escape') {
@@ -323,12 +333,12 @@
 									document.getElementById('confirm-edit-message-button')?.click();
 								}
 							}}
-						/>
+						></textarea>
 					</div>
 
 					<div class=" mt-2 mb-1 flex justify-between text-sm font-medium">
 						<div>
-							<button
+						    <button
 								id="save-edit-message-button"
 								class="px-3.5 py-1.5 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-200 transition rounded-3xl"
 								on:click={() => {
@@ -340,7 +350,7 @@
 						</div>
 
 						<div class="flex space-x-1.5">
-							<button
+						    <button
 								id="close-edit-message-button"
 								class="px-3.5 py-1.5 bg-white dark:bg-gray-900 hover:bg-gray-100 text-gray-800 dark:text-gray-100 transition rounded-3xl"
 								on:click={() => {
@@ -349,7 +359,6 @@
 							>
 								{$i18n.t('Cancel')}
 							</button>
-
 							<button
 								id="confirm-edit-message-button"
 								class="px-3.5 py-1.5 bg-gray-900 dark:bg-white hover:bg-gray-850 text-gray-100 dark:text-gray-800 transition rounded-3xl"
@@ -394,7 +403,8 @@
 					{#if !($settings?.chatBubble ?? true)}
 						{#if siblings.length > 1}
 							<div class="flex self-center" dir="ltr">
-								<button
+								<button 
+									aria-label={$i18n.t('Previous message')}
 									class="self-center p-1 hover:bg-black/5 dark:hover:bg-white/5 dark:hover:text-white hover:text-black rounded-md transition"
 									on:click={() => {
 										showPreviousMessage(message);
@@ -423,19 +433,30 @@
 										<input
 											id="message-index-input-{message.id}"
 											type="number"
-											value={siblings.indexOf(message.id) + 1}
+											value={siblings.indexOf(message.id) !== -1
+												? siblings.indexOf(message.id) + 1
+												: 1}
 											min="1"
 											max={siblings.length}
 											on:focus={(e) => {
-												e.target.select();
+												const target = e.target as HTMLInputElement;
+												target.select();
 											}}
 											on:blur={(e) => {
-												gotoMessage(message, e.target.value - 1);
+												const target = e.target as HTMLInputElement;
+												const val = Number(target.value);
+												if (!isNaN(val) && val > 0) {
+													gotoMessage(message, val - 1);
+												}
 												messageIndexEdit = false;
 											}}
 											on:keydown={(e) => {
 												if (e.key === 'Enter') {
-													gotoMessage(message, e.target.value - 1);
+													const target = e.target as HTMLInputElement;
+													const val = Number(target.value);
+													if (!isNaN(val) && val > 0) {
+														gotoMessage(message, val - 1);
+													}
 													messageIndexEdit = false;
 												}
 											}}
@@ -452,8 +473,8 @@
 											await tick();
 											const input = document.getElementById(`message-index-input-${message.id}`);
 											if (input) {
-												input.focus();
-												input.select();
+												(input as HTMLInputElement).focus();
+												(input as HTMLInputElement).select();
 											}
 										}}
 									>
@@ -462,6 +483,7 @@
 								{/if}
 
 								<button
+									aria-label={$i18n.t('Next message')}
 									class="self-center p-1 hover:bg-black/5 dark:hover:bg-white/5 dark:hover:text-white hover:text-black rounded-md transition"
 									on:click={() => {
 										showNextMessage(message);
@@ -487,10 +509,11 @@
 					{/if}
 					{#if !readOnly}
 						<Tooltip content={$i18n.t('Edit')} placement="bottom">
-							<button
+						    <button
 								class="{($settings?.highContrastMode ?? false)
 									? ''
 									: 'invisible group-hover:visible'} p-1.5 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg dark:hover:text-white hover:text-black transition edit-user-message-button"
+								aria-label={$i18n.t('Edit')}
 								on:click={() => {
 									editMessageHandler();
 								}}
@@ -515,13 +538,12 @@
 
 					{#if message?.content}
 						<Tooltip content={$i18n.t('Copy')} placement="bottom">
-							<button
-								class="{($settings?.highContrastMode ?? false)
-									? ''
-									: 'invisible group-hover:visible'} p-1.5 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg dark:hover:text-white hover:text-black transition"
-								on:click={() => {
-									copyToClipboard(message.content);
-								}}
+					    <button
+							aria-label={$i18n.t('Copy')}
+							class="{($settings?.highContrastMode ?? false)
+								? ''
+								: 'invisible group-hover:visible'} p-1.5 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg dark:hover:text-white hover:text-black transition"
+							on:click={() => copyToClipboard(message.content)}
 							>
 								<svg
 									xmlns="http://www.w3.org/2000/svg"
@@ -544,13 +566,12 @@
 					{#if $_user?.role === 'admin' || ($_user?.permissions?.chat?.delete_message ?? false)}
 						{#if !readOnly && (!isFirstMessage || siblings.length > 1)}
 							<Tooltip content={$i18n.t('Delete')} placement="bottom">
-								<button
-									class="{($settings?.highContrastMode ?? false)
-										? ''
-										: 'invisible group-hover:visible'} p-1 rounded-sm dark:hover:text-white hover:text-black transition"
-									on:click={() => {
-										showDeleteConfirm = true;
-									}}
+						    <button
+								aria-label={$i18n.t('Delete')}
+								class="{($settings?.highContrastMode ?? false)
+									? ''
+									: 'invisible group-hover:visible'} p-1 rounded-sm dark:hover:text-white hover:text-black transition"
+								on:click={() => showDeleteConfirm = true}
 								>
 									<svg
 										xmlns="http://www.w3.org/2000/svg"
@@ -574,10 +595,11 @@
 					{#if $settings?.chatBubble ?? true}
 						{#if siblings.length > 1}
 							<div class="flex self-center" dir="ltr">
-								<button
+							    <button
+									aria-label={$i18n.t('Previous message')}
 									class="self-center p-1 hover:bg-black/5 dark:hover:bg-white/5 dark:hover:text-white hover:text-black rounded-md transition"
 									on:click={() => {
-										showPreviousMessage(message);
+										showPreviousMessage(message)
 									}}
 								>
 									<svg
@@ -597,25 +619,36 @@
 								</button>
 
 								{#if messageIndexEdit}
-									<div
-										class="text-sm flex justify-center font-semibold self-center dark:text-gray-100 min-w-fit"
-									>
+								<div
+									class="text-sm flex justify-center font-semibold self-center dark:text-gray-100 min-w-fit"
+							        >
 										<input
 											id="message-index-input-{message.id}"
 											type="number"
-											value={siblings.indexOf(message.id) + 1}
+											value={siblings.indexOf(message.id) !== -1
+												? siblings.indexOf(message.id) + 1
+												: 1}
 											min="1"
 											max={siblings.length}
 											on:focus={(e) => {
-												e.target.select();
+												const target = e.target as HTMLInputElement;
+												target.select();
 											}}
 											on:blur={(e) => {
-												gotoMessage(message, e.target.value - 1);
+												const target = e.target as HTMLInputElement;
+												const val = Number(target.value);
+												if (!isNaN(val) && val > 0) {
+													gotoMessage(message, val - 1);
+												}
 												messageIndexEdit = false;
 											}}
 											on:keydown={(e) => {
 												if (e.key === 'Enter') {
-													gotoMessage(message, e.target.value - 1);
+													const target = e.target as HTMLInputElement;
+													const val = Number(target.value);
+													if (!isNaN(val) && val > 0) {
+														gotoMessage(message, val - 1);
+													}
 													messageIndexEdit = false;
 												}
 											}}
@@ -632,19 +665,19 @@
 											await tick();
 											const input = document.getElementById(`message-index-input-${message.id}`);
 											if (input) {
-												input.focus();
-												input.select();
+												(input as HTMLInputElement).focus();
+												(input as HTMLInputElement).select();
 											}
 										}}
 									>
 										{siblings.indexOf(message.id) + 1}/{siblings.length}
 									</div>
 								{/if}
-
-								<button
+                                <button
+									aria-label={$i18n.t('Next message')}
 									class="self-center p-1 hover:bg-black/5 dark:hover:bg-white/5 dark:hover:text-white hover:text-black rounded-md transition"
 									on:click={() => {
-										showNextMessage(message);
+										showNextMessage(message)
 									}}
 								>
 									<svg

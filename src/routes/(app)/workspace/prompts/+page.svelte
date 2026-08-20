@@ -1,5 +1,5 @@
-<script>
-	import Prompts from '$lib/components/workspace/Prompts.svelte';
+<script lang="ts">
+	import OpenClawCommandsEditorPage from '$lib/components/workspace/openclaw/OpenClawCommandsEditorPage.svelte';
 </script>
 
-<Prompts />
+<OpenClawCommandsEditorPage titleKey="Prompts" />

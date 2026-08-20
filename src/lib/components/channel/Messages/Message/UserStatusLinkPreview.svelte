@@ -7,13 +7,13 @@
 
 	import UserStatus from './UserStatus.svelte';
 
-	export let id = null;
+	export let id: string | null = null;
 
-	export let side = 'top';
-	export let align = 'start';
+	export let side: 'top' | 'right' | 'bottom' | 'left' | undefined = 'top';
+	export let align: 'start' | 'center' | 'end' | undefined = 'start';
 	export let sideOffset = 6;
 
-	let user = null;
+	let user: any = null;
 	onMount(async () => {
 		if (id) {
 			user = await getUserInfoById(localStorage.token, id).catch((error) => {

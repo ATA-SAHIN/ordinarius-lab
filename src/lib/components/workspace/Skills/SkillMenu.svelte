@@ -10,13 +10,14 @@
 	import Download from '$lib/components/icons/Download.svelte';
 	import { user } from '$lib/stores';
 
-	const i18n = getContext('i18n');
+	import type { Writable } from 'svelte/store';
+	const i18n = getContext<Writable<{ t: (k: string, p?: Record<string, any>) => string }>>('i18n');
 
-	export let editHandler: Function;
-	export let cloneHandler: Function;
-	export let exportHandler: Function;
-	export let deleteHandler: Function;
-	export let onClose: Function;
+	export let editHandler: () => void;
+	export let cloneHandler: () => void;
+	export let exportHandler: () => void;
+	export let deleteHandler: () => void;
+	export let onClose: () => void;
 
 	let show = false;
 </script>

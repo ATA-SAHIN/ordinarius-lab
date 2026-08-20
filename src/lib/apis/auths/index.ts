@@ -1,4 +1,5 @@
 import { WEBUI_API_BASE_URL } from '$lib/constants';
+import type { SessionUser } from '$lib/types';
 
 export const getAdminDetails = async (token: string) => {
 	let error = null;
@@ -82,7 +83,7 @@ export const updateAdminConfig = async (token: string, body: object) => {
 	return res;
 };
 
-export const getSessionUser = async (token: string) => {
+export const getSessionUser = async (token: string): Promise<SessionUser | null> => {
 	let error = null;
 
 	const res = await fetch(`${WEBUI_API_BASE_URL}/auths/`, {
@@ -110,7 +111,7 @@ export const getSessionUser = async (token: string) => {
 	return res;
 };
 
-export const ldapUserSignIn = async (user: string, password: string) => {
+export const ldapUserSignIn = async (user: string, password: string): Promise<SessionUser | null> => {
 	let error = null;
 
 	const res = await fetch(`${WEBUI_API_BASE_URL}/auths/ldap`, {
@@ -254,7 +255,7 @@ export const updateLdapServer = async (token: string = '', body: object) => {
 	return res;
 };
 
-export const userSignIn = async (email: string, password: string) => {
+export const userSignIn = async (email: string, password: string): Promise<SessionUser | null> => {
 	let error = null;
 
 	const res = await fetch(`${WEBUI_API_BASE_URL}/auths/signin`, {
@@ -291,7 +292,7 @@ export const userSignUp = async (
 	email: string,
 	password: string,
 	profile_image_url: string
-) => {
+): Promise<SessionUser | null> => {
 	let error = null;
 
 	const res = await fetch(`${WEBUI_API_BASE_URL}/auths/signup`, {

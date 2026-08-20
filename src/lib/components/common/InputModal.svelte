@@ -9,15 +9,15 @@
 
 	export let id = 'input-modal';
 
-	export let show = false;
-	export let value = null;
-	export let inputContent = null;
+	export let show: boolean = false;
+	export let value: string | null = null;
+	export let inputContent: any = null;
 
-	export let autocomplete = false;
-	export let generateAutoCompletion = null;
+	export let autocomplete: boolean = false;
+	export let generateAutoCompletion: Function | undefined = undefined;
 
-	export let onChange = () => {};
-	export let onClose = () => {};
+	export let onChange: (content: any) => void = () => {};
+	export let onClose: () => void = () => {};
 
 	let inputElement;
 </script>

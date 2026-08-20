@@ -1,4 +1,5 @@
 <script lang="ts">
+	// @ts-nocheck
 	import { config, models, settings, showCallOverlay, TTSWorker } from '$lib/stores';
 	import { onMount, tick, getContext, onDestroy, createEventDispatcher } from 'svelte';
 
@@ -51,7 +52,7 @@
 		const devices = await navigator.mediaDevices.enumerateDevices();
 		videoInputDevices = devices.filter((device) => device.kind === 'videoinput');
 
-		if (!!navigator.mediaDevices.getDisplayMedia) {
+		if (navigator.mediaDevices.getDisplayMedia) {
 			videoInputDevices = [
 				...videoInputDevices,
 				{

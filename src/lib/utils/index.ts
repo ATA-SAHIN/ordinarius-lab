@@ -1,6 +1,6 @@
 import type { Writable } from 'svelte/store';
 import { v4 as uuidv4 } from 'uuid';
-import sha256 from 'js-sha256';
+import { sha256 } from 'js-sha256';
 import { WEBUI_BASE_URL } from '$lib/constants';
 
 import dayjs from 'dayjs';
@@ -49,7 +49,8 @@ export const replaceOutsideCode = (content: string, replacer: (str: string) => s
 		.join('');
 };
 
-export const replaceTokens = (content, char, user) => {
+export const replaceTokens = (content: string, char: string, user: string): string => {
+	type TokenReplacement = string | ((match: string, fileId: string) => string);
 	const tokens = [
 		{ regex: /{{char}}/gi, replacement: char },
 		{ regex: /{{user}}/gi, replacement: user },
@@ -62,13 +63,16 @@ export const replaceTokens = (content, char, user) => {
 			regex: /{{HTML_FILE_ID_([a-f0-9-]+)}}/gi,
 			replacement: (_, fileId) => `<file type="html" id="${fileId}" />`
 		}
-	];
+	] as Array<{ regex: RegExp; replacement: TokenReplacement }>;
 
 	// Apply replacements
 	content = replaceOutsideCode(content, (segment) => {
 		tokens.forEach(({ regex, replacement }) => {
 			if (replacement !== undefined && replacement !== null) {
-				segment = segment.replace(regex, replacement);
+				segment =
+					typeof replacement === 'string'
+						? segment.replace(regex, replacement)
+						: segment.replace(regex, replacement);
 			}
 		});
 
@@ -169,11 +173,11 @@ export function unescapeHtml(html: string) {
 	return doc.documentElement.textContent;
 }
 
-export const capitalizeFirstLetter = (string) => {
+export const capitalizeFirstLetter = (string: string): string => {
 	return string.charAt(0).toUpperCase() + string.slice(1);
 };
 
-export const splitStream = (splitOn) => {
+export const splitStream = (splitOn: string): TransformStream<string, string> => {
 	let buffer = '';
 	return new TransformStream({
 		transform(chunk, controller) {
@@ -188,8 +192,8 @@ export const splitStream = (splitOn) => {
 	});
 };
 
-export const convertMessagesToHistory = (messages) => {
-	const history = {
+export const convertMessagesToHistory = (messages: any[]): { messages: Record<string, any>; currentId: string | null } => {
+	const history: { messages: Record<string, any>; currentId: string | null } = {
 		messages: {},
 		currentId: null
 	};
@@ -221,7 +225,7 @@ export const convertMessagesToHistory = (messages) => {
 	return history;
 };
 
-export const getGravatarURL = (email) => {
+export const getGravatarURL = (email: string): string => {
 	// Trim leading and trailing whitespace from
 	// an email address and force all characters
 	// to lower case
@@ -253,8 +257,8 @@ export const canvasPixelTest = () => {
 		}
 	}
 
-	ctx.putImageData(imageData, 0, 0);
-	const p = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+	ctx!.putImageData(imageData, 0, 0);
+	const p = ctx!.getImageData(0, 0, canvas.width, canvas.height).data;
 
 	// Read RGB data and fail if unmatched
 	for (let i = 0; i < p.length; i += 1) {
@@ -315,7 +319,7 @@ async function resizeImageToDataURL(
 	return Promise.resolve(toDataURL());
 }
 
-export const compressImage = async (imageUrl, maxWidth, maxHeight) => {
+export const compressImage = async (imageUrl: string, maxWidth?: number, maxHeight?: number): Promise<string> => {
 	return new Promise((resolve, reject) => {
 		const img = new Image();
 		img.onload = async () => {
@@ -368,7 +372,7 @@ export const compressImage = async (imageUrl, maxWidth, maxHeight) => {
 		img.src = imageUrl;
 	});
 };
-export const generateInitialsImage = (name) => {
+export const generateInitialsImage = (name: string): string => {
 	const canvas = document.createElement('canvas');
 	const ctx = canvas.getContext('2d');
 	canvas.width = 100;
@@ -381,13 +385,13 @@ export const generateInitialsImage = (name) => {
 		return `${WEBUI_BASE_URL}/user.png`;
 	}
 
-	ctx.fillStyle = '#F39C12';
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx!.fillStyle = '#F39C12';
+	ctx!.fillRect(0, 0, canvas.width, canvas.height);
 
-	ctx.fillStyle = '#FFFFFF';
-	ctx.font = '40px Helvetica';
-	ctx.textAlign = 'center';
-	ctx.textBaseline = 'middle';
+	ctx!.fillStyle = '#FFFFFF';
+	ctx!.font = '40px Helvetica';
+	ctx!.textAlign = 'center';
+	ctx!.textBaseline = 'middle';
 
 	const sanitizedName = name.trim();
 	const initials =
@@ -398,12 +402,12 @@ export const generateInitialsImage = (name) => {
 					: '')
 			: '';
 
-	ctx.fillText(initials.toUpperCase(), canvas.width / 2, canvas.height / 2);
+	ctx!.fillText(initials.toUpperCase(), canvas.width / 2, canvas.height / 2);
 
 	return canvas.toDataURL();
 };
 
-export const formatDate = (inputDate) => {
+export const formatDate = (inputDate: string | number | Date): string => {
 	const date = dayjs(inputDate);
 
 	if (date.isToday()) {
@@ -1701,7 +1705,7 @@ export const getCodeBlockContents = (content: string): object => {
 
 	const codeBlockContents = content.match(/```[\s\S]*?```/g);
 
-	let codeBlocks = [];
+	const codeBlocks = [];
 
 	let htmlContent = '';
 	let cssContent = '';

@@ -113,6 +113,11 @@ from open_webui.utils.code_interpreter import execute_code_jupyter
 from open_webui.utils.payload import apply_system_prompt_to_body
 from open_webui.utils.response import normalize_usage
 from open_webui.utils.mcp.client import MCPClient
+from open_webui.utils.ordinarius_policy import (
+    build_ordinarius_system_policy_note,
+    resolve_ordinarius_function_calling_mode,
+    resolve_ordinarius_message_mode_system_override,
+)
 
 
 from open_webui.config import (
@@ -2200,6 +2205,38 @@ async def process_chat_payload(request, form_data, user, metadata, model):
             pass
 
     form_data = await convert_url_images_to_base64(form_data)
+
+    # Ordinarius: request metadata drives prompt/tool policy for this path.
+    ordinarius = metadata.get("ordinarius")
+    resolved_function_calling = resolve_ordinarius_function_calling_mode(ordinarius)
+    if resolved_function_calling:
+        metadata.setdefault("params", {})
+        metadata["params"]["function_calling"] = resolved_function_calling
+
+        form_data.setdefault("params", {})
+        form_data["params"]["function_calling"] = resolved_function_calling
+
+        policy_note = build_ordinarius_system_policy_note(ordinarius)
+        if policy_note:
+            form_data["messages"] = add_or_update_system_message(
+                policy_note,
+                form_data.get("messages", []),
+                append=True,
+            )
+
+    # Ordinarius: Apply message mode system prompt override (chat vs agent behavior)
+    # Chat mode: Natural conversation, no forced tool calls
+    # Agent mode: Full IDE tool directives for native operations
+    message_mode_override = resolve_ordinarius_message_mode_system_override(ordinarius)
+    if message_mode_override:
+        form_data["messages"] = add_or_update_system_message(
+            message_mode_override,
+            form_data.get("messages", []),
+            append=True,
+        )
+        log.debug(
+            f"[Ordinarius] Applied message mode override for mode: {ordinarius.get('messageMode') if ordinarius else 'unknown'}"
+        )
 
     event_emitter = get_event_emitter(metadata)
     event_caller = get_event_call(metadata)

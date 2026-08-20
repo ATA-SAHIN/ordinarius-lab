@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import { onMount, getContext } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { user } from '$lib/stores';

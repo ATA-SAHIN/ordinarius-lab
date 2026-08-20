@@ -3,6 +3,7 @@
 	import { flyAndScale } from '$lib/utils/transitions';
 	import { getContext } from 'svelte';
 	import { config, user } from '$lib/stores';
+	import type { Writable } from 'svelte/store';
 
 	import Dropdown from '$lib/components/common/Dropdown.svelte';
 	import GarbageBin from '$lib/components/icons/GarbageBin.svelte';
@@ -14,13 +15,13 @@
 	import DocumentDuplicate from '$lib/components/icons/DocumentDuplicate.svelte';
 	import Download from '$lib/components/icons/Download.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<{ t: (k: string, p?: Record<string, any>) => string }>>('i18n');
 
-	export let shareHandler: Function;
-	export let cloneHandler: Function;
-	export let exportHandler: Function;
-	export let deleteHandler: Function;
-	export let onClose: Function;
+	export let shareHandler: () => void = () => {};
+	export let cloneHandler: () => void = () => {};
+	export let exportHandler: () => void = () => {};
+	export let deleteHandler: () => void = () => {};
+	export let onClose: () => void = () => {};
 
 	let show = false;
 </script>
@@ -45,7 +46,7 @@
 			align="start"
 			transition={flyAndScale}
 		>
-			{#if $config.features.enable_community_sharing}
+			{#if $config?.features?.enable_community_sharing}
 				<DropdownMenu.Item
 					class="select-none flex gap-2 items-center px-3 py-1.5 text-sm  cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800  rounded-xl"
 					on:click={() => {

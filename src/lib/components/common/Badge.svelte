@@ -1,6 +1,6 @@
 <script lang="ts">
-	export let type = 'info';
-	export let content = '';
+	export let type: 'info' | 'success' | 'warning' | 'error' | 'muted' | string = 'info';
+	export let content: string = '';
 
 	const classNames: Record<string, string> = {
 		info: 'bg-blue-500/20 text-blue-700 dark:text-blue-200 ',

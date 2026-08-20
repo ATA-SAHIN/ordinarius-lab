@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import { toast } from 'svelte-sonner';
 	import dayjs from 'dayjs';
 	import relativeTime from 'dayjs/plugin/relativeTime';
@@ -27,12 +27,13 @@
 		getAllUsers,
 		updateUserDefaultPermissions
 	} from '$lib/apis/users';
+	import type { Group } from '$lib/types';
 
 	const i18n = getContext('i18n');
 
 	let loaded = false;
 
-	let groups = [];
+	let groups: Group[] = [];
 
 	let query = '';
 	let sortBy = 'members';
@@ -61,7 +62,7 @@
 			return 0;
 		});
 
-	let defaultPermissions = {};
+	let defaultPermissions: Record<string, boolean | string | number | any> = {};
 
 	let showAddGroupModal = false;
 	let showDefaultPermissionsModal = false;
@@ -70,7 +71,7 @@
 		groups = await getGroups(localStorage.token);
 	};
 
-	const addGroupHandler = async (group) => {
+	const addGroupHandler = async (group: { name: string; permissions: any }) => {
 		const res = await createNewGroup(localStorage.token, group).catch((error) => {
 			toast.error(`${error}`);
 			return null;
@@ -82,7 +83,7 @@
 		}
 	};
 
-	const updateDefaultPermissionsHandler = async (group) => {
+	const updateDefaultPermissionsHandler = async (group: { permissions: any }) => {
 		console.debug(group.permissions);
 
 		const res = await updateUserDefaultPermissions(localStorage.token, group.permissions).catch(
@@ -179,7 +180,9 @@
 				selected={sortItems.find((item) => item.value === sortBy)}
 				items={sortItems}
 				onSelectedChange={(selectedItem) => {
-					sortBy = selectedItem.value;
+					if (selectedItem) {
+						sortBy = (selectedItem as { value: string }).value;
+					}
 				}}
 			>
 				<Select.Trigger

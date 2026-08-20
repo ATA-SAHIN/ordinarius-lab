@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher, getContext } from 'svelte';
+	import { type Writable } from 'svelte/store';
 	import { WEBUI_API_BASE_URL } from '$lib/constants';
 
 	import { formatFileSize } from '$lib/utils';
@@ -11,7 +12,7 @@
 	import Tooltip from './Tooltip.svelte';
 	import XMark from '$lib/components/icons/XMark.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<{ t: (k: string, p?: Record<string, any>) => string }>>('i18n');
 	const dispatch = createEventDispatcher();
 
 	export let className = 'w-60';
@@ -23,7 +24,9 @@
 	export let modal = false;
 	export let loading = false;
 
-	export let item = null;
+	import type { MessageFile } from '$lib/types/chat';
+
+	export let item: MessageFile | null = null;
 	export let edit = false;
 	export let small = false;
 
@@ -63,12 +66,15 @@
 			if (url) {
 				if (type === 'file') {
 					if (url.startsWith('http')) {
-						window.open(`${url}/content`, '_blank').focus();
+						const win = window.open(`${url}/content`, '_blank');
+						if (win) win.focus();
 					} else {
-						window.open(`${WEBUI_API_BASE_URL}/files/${url}/content`, '_blank').focus();
+						const win = window.open(`${WEBUI_API_BASE_URL}/files/${url}/content`, '_blank');
+						if (win) win.focus();
 					}
 				} else {
-					window.open(`${url}`, '_blank').focus();
+					const win = window.open(`${url}`, '_blank');
+					if (win) win.focus();
 				}
 			}
 		}

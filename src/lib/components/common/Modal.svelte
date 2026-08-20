@@ -9,14 +9,14 @@
 	export let containerClassName = 'p-3';
 	export let className = 'bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm rounded-4xl';
 
-	let modalElement = null;
+	let modalElement: HTMLElement | null = null;
 	let mounted = false;
 	// Create focus trap to trap user tabs inside modal
 	// https://www.w3.org/WAI/WCAG21/Understanding/focus-order.html
 	// https://www.w3.org/WAI/WCAG21/Understanding/keyboard.html
 	let focusTrap: FocusTrap.FocusTrap | null = null;
 
-	const sizeToWidth = (size) => {
+	const sizeToWidth = (size: string) => {
 		if (size === 'full') {
 			return 'w-full';
 		}
@@ -59,9 +59,10 @@
 		document.body.appendChild(modalElement);
 		focusTrap = FocusTrap.createFocusTrap(modalElement, {
 			allowOutsideClick: (e) => {
+				const target = e.target as HTMLElement;
 				return (
-					e.target.closest('[data-sonner-toast]') !== null ||
-					e.target.closest('.modal-content') === null
+					target.closest('[data-sonner-toast]') !== null ||
+					target.closest('.modal-content') === null
 				);
 			}
 		});
@@ -69,9 +70,13 @@
 		window.addEventListener('keydown', handleKeyDown);
 		document.body.style.overflow = 'hidden';
 	} else if (modalElement) {
-		focusTrap.deactivate();
+		if (focusTrap) {
+			focusTrap.deactivate();
+		}
 		window.removeEventListener('keydown', handleKeyDown);
-		document.body.removeChild(modalElement);
+		if (modalElement.parentNode) {
+			document.body.removeChild(modalElement);
+		}
 		document.body.style.overflow = 'unset';
 	}
 

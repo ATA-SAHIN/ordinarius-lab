@@ -8,10 +8,12 @@
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import PinSlash from '$lib/components/icons/PinSlash.svelte';
 
-	export let model = null;
+	import type { Model } from '$lib/types/models';
+
+	export let model: Model | null = null;
 	export let shiftKey = false;
-	export let onClick = () => {};
-	export let onUnpin = () => {};
+	export let onClick: () => void = () => {};
+	export let onUnpin: (() => void) | null = null;
 
 	let mouseOver = false;
 </script>

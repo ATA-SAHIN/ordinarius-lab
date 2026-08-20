@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import { toast } from 'svelte-sonner';
 	import { onMount, getContext } from 'svelte';
 	import { page } from '$app/stores';
@@ -6,21 +6,19 @@
 	const i18n = getContext('i18n');
 
 	import { deleteGroupById, updateGroupById } from '$lib/apis/groups';
+	import type { Group } from '$lib/types';
 
 	import Pencil from '$lib/components/icons/Pencil.svelte';
 	import EditGroupModal from './EditGroupModal.svelte';
 
-	export let group = {
-		name: 'Admins',
-		user_ids: [1, 2, 3]
-	};
-	export let defaultPermissions = {};
+	export let group: Group;
+	export let defaultPermissions: Record<string, any> = {};
 
-	export let setGroups = () => {};
+	export let setGroups: () => void = () => {};
 
 	let showEdit = false;
 
-	const updateHandler = async (_group) => {
+	const updateHandler = async (_group: Partial<Group>) => {
 		const res = await updateGroupById(localStorage.token, group.id, _group).catch((error) => {
 			toast.error(`${error}`);
 			return null;

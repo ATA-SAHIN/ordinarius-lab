@@ -19,7 +19,7 @@
 
 	let loading = false;
 	let tab = '';
-	let inputFiles;
+	let inputFiles: FileList | null = null;
 
 	let _user = {
 		name: '',
@@ -68,8 +68,8 @@
 				const file = inputFiles[0];
 				const reader = new FileReader();
 
-				reader.onload = async (e) => {
-					const csv = e.target.result;
+				reader.onload = async (e: ProgressEvent<FileReader>) => {
+					const csv = e.target?.result as string;
 					const rows = csv.split('\n');
 
 					let userCount = 0;
@@ -108,10 +108,12 @@
 						$i18n.t('Successfully imported {{userCount}} users.', { userCount: userCount })
 					);
 					inputFiles = null;
-					const uploadInputElement = document.getElementById('upload-user-csv-input');
+					const uploadInputElement = document.getElementById(
+						'upload-user-csv-input'
+					) as HTMLInputElement | null;
 
 					if (uploadInputElement) {
-						uploadInputElement.value = null;
+						uploadInputElement.value = '';
 					}
 
 					stopLoading();
@@ -232,10 +234,10 @@
 
 								<div class="flex-1">
 									<SensitiveInput
-										class="w-full text-sm bg-transparent disabled:text-gray-500 dark:disabled:text-gray-500 outline-hidden"
+										inputClassName="w-full text-sm bg-transparent disabled:text-gray-500 dark:disabled:text-gray-500 outline-hidden"
 										type="password"
 										bind:value={_user.password}
-										aria-label={$i18n.t('Password')}
+										id="password"
 										placeholder={$i18n.t('Enter Your Password')}
 										autocomplete="off"
 										required

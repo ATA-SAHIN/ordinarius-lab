@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import { getContext, tick, onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
@@ -11,11 +11,13 @@
 
 	const i18n = getContext('i18n');
 
-	let selectedTab;
+	let selectedTab: 'overview' | 'groups' = 'overview';
 	$: {
 		const pathParts = $page.url.pathname.split('/');
 		const tabFromPath = pathParts[pathParts.length - 1];
-		selectedTab = ['overview', 'groups'].includes(tabFromPath) ? tabFromPath : 'overview';
+		selectedTab = (['overview', 'groups'].includes(tabFromPath) ? tabFromPath : 'overview') as
+			| 'overview'
+			| 'groups';
 	}
 
 	$: if (selectedTab) {
@@ -23,7 +25,7 @@
 		scrollToTab(selectedTab);
 	}
 
-	const scrollToTab = (tabId) => {
+	const scrollToTab = (tabId: 'overview' | 'groups' | string) => {
 		const tabElement = document.getElementById(tabId);
 		if (tabElement) {
 			tabElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });

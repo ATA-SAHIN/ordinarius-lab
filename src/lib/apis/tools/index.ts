@@ -1,4 +1,5 @@
 import { WEBUI_API_BASE_URL } from '$lib/constants';
+import { getOpenClawAvailableTools } from '$lib/apis/openclaw';
 
 export const createNewTool = async (token: string, tool: object) => {
 	let error = null;
@@ -93,6 +94,23 @@ export const getTools = async (token: string = '') => {
 		throw error;
 	}
 
+	if (res && Array.isArray(res)) {
+		try {
+			const openclawTools = await getOpenClawAvailableTools(token);
+			if (openclawTools && Array.isArray(openclawTools)) {
+				return [...res, ...openclawTools.map(t => ({
+					...t,
+					user: { name: 'OpenClaw', email: 'system@openclaw.engine' },
+					write_access: true,
+					content: `class Tools:\n    def __init__(self):\n        self.citation = True\n        self.valves = None\n    async def ${t.id.replace(/\./g, '_')}(self):\n        """${t.meta?.description || 'OpenClaw native tool'}"""\n        pass`,
+					meta: { description: t.meta?.description, manifest: { version: 'OpenClaw Engine' } }
+				}))];
+			}
+		} catch (e) {
+			console.warn('Failed to load OpenClaw tools natively', e);
+		}
+	}
+
 	return res;
 };
 
@@ -122,6 +140,23 @@ export const getToolList = async (token: string = '') => {
 
 	if (error) {
 		throw error;
+	}
+
+	if (res && Array.isArray(res)) {
+		try {
+			const openclawTools = await getOpenClawAvailableTools(token);
+			if (openclawTools && Array.isArray(openclawTools)) {
+				return [...res, ...openclawTools.map(t => ({
+					...t,
+					user: { name: 'OpenClaw', email: 'system@openclaw.engine' },
+					write_access: true,
+					content: `class Tools:\n    def __init__(self):\n        self.citation = True\n        self.valves = None\n    async def ${t.id.replace(/\./g, '_')}(self):\n        """${t.meta?.description || 'OpenClaw native tool'}"""\n        pass`,
+					meta: { description: t.meta?.description, manifest: { version: 'OpenClaw Engine' } }
+				}))];
+			}
+		} catch (e) {
+			console.warn('Failed to load OpenClaw tools natively', e);
+		}
 	}
 
 	return res;
@@ -160,6 +195,24 @@ export const exportTools = async (token: string = '') => {
 
 export const getToolById = async (token: string, id: string) => {
 	let error = null;
+
+	if (id && id.startsWith('openclaw.')) {
+		try {
+			const openclawTools = await getOpenClawAvailableTools(token);
+			const found = (openclawTools || []).find((t: any) => t.id === id);
+			if (found) {
+				return {
+					...found,
+					user: { name: 'OpenClaw', email: 'system@openclaw.engine' },
+					write_access: true,
+					content: `class Tools:\n    def __init__(self):\n        self.citation = True\n        self.valves = None\n    async def ${found.id.replace(/\./g, '_')}(self):\n        """${found.meta?.description || 'OpenClaw native tool'}"""\n        pass`,
+					meta: { description: found.meta?.description, manifest: { version: 'OpenClaw Engine' } }
+				};
+			}
+		} catch (e) {
+			console.warn('Failed to intercept tool id', e);
+		}
+	}
 
 	const res = await fetch(`${WEBUI_API_BASE_URL}/tools/id/${id}`, {
 		method: 'GET',

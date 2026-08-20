@@ -4,9 +4,10 @@
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import { marked } from 'marked';
 
-	const i18n = getContext('i18n');
+	import type { Writable } from 'svelte/store';
+	const i18n = getContext<Writable<{ t: (k: string, p?: Record<string, any>) => string }>>('i18n');
 
-	const toolLabels = {
+	const toolLabels: Record<string, { label: string; description: string }> = {
 		time: {
 			label: $i18n.t('Time & Calculation'),
 			description: $i18n.t('Get current time and perform date/time calculations')
@@ -65,7 +66,7 @@
 	</div>
 	<div class="flex items-center mt-2 flex-wrap">
 		{#each allTools as tool}
-			<div class="flex items-center gap-2 mr-3">
+			<div class="flex items-center gap-2 mr-3 mb-2">
 				<Checkbox
 					state={builtinTools[tool] !== false ? 'checked' : 'unchecked'}
 					on:change={(e) => {

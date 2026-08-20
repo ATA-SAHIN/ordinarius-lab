@@ -13,7 +13,7 @@
 
 	export let saveHandler: Function;
 
-	let webSearchEngines = [
+	let webSearchEngines: string[] = [
 		'ollama_cloud',
 		'perplexity_search',
 		'searxng',
@@ -40,9 +40,9 @@
 		'yandex',
 		'youcom'
 	];
-	let webLoaderEngines = ['playwright', 'firecrawl', 'tavily', 'external'];
+	let webLoaderEngines: string[] = ['playwright', 'firecrawl', 'tavily', 'external'];
 
-	let webConfig = null;
+	let webConfig: any | null = null;
 
 	const submitHandler = async () => {
 		// Convert domain filter string to array before sending
@@ -91,7 +91,7 @@
 	};
 
 	onMount(async () => {
-		const res = await getRAGConfig(localStorage.token);
+		const res: any = await getRAGConfig(localStorage.token);
 
 		if (res) {
 			webConfig = res.web;
@@ -99,24 +99,24 @@
 			// Convert array back to comma-separated string for display
 			if (Array.isArray(webConfig?.WEB_SEARCH_DOMAIN_FILTER_LIST)) {
 				webConfig.WEB_SEARCH_DOMAIN_FILTER_LIST = webConfig.WEB_SEARCH_DOMAIN_FILTER_LIST.join(',');
-			} else if (!webConfig.WEB_SEARCH_DOMAIN_FILTER_LIST) {
+			} else if (webConfig && !webConfig.WEB_SEARCH_DOMAIN_FILTER_LIST) {
 				webConfig.WEB_SEARCH_DOMAIN_FILTER_LIST = '';
 			}
 
 			if (Array.isArray(webConfig?.YOUTUBE_LOADER_LANGUAGE)) {
 				webConfig.YOUTUBE_LOADER_LANGUAGE = webConfig.YOUTUBE_LOADER_LANGUAGE.join(',');
-			} else if (!webConfig.YOUTUBE_LOADER_LANGUAGE) {
+			} else if (webConfig && !webConfig.YOUTUBE_LOADER_LANGUAGE) {
 				webConfig.YOUTUBE_LOADER_LANGUAGE = '';
 			}
 
 			// Convert timeout strings to numbers for number input fields
-			if (webConfig.FIRECRAWL_TIMEOUT && typeof webConfig.FIRECRAWL_TIMEOUT === 'string') {
+			if (webConfig?.FIRECRAWL_TIMEOUT && typeof webConfig.FIRECRAWL_TIMEOUT === 'string') {
 				const parsed = parseInt(webConfig.FIRECRAWL_TIMEOUT);
 				if (!isNaN(parsed)) {
 					webConfig.FIRECRAWL_TIMEOUT = parsed;
 				}
 			}
-			if (webConfig.PLAYWRIGHT_TIMEOUT && typeof webConfig.PLAYWRIGHT_TIMEOUT === 'string') {
+			if (webConfig?.PLAYWRIGHT_TIMEOUT && typeof webConfig.PLAYWRIGHT_TIMEOUT === 'string') {
 				const parsed = parseInt(webConfig.PLAYWRIGHT_TIMEOUT);
 				if (!isNaN(parsed)) {
 					webConfig.PLAYWRIGHT_TIMEOUT = parsed;

@@ -10,9 +10,9 @@
 
 	import ModelEditor from '$lib/components/workspace/Models/ModelEditor.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext('i18n') as any;
 
-	const onSubmit = async (modelInfo) => {
+	const onSubmit = async (modelInfo: any) => {
 		if ($models.find((m) => m.id === modelInfo.id)) {
 			toast.error(
 				$i18n.t(
@@ -36,7 +36,7 @@
 					profile_image_url:
 						modelInfo.meta.profile_image_url ?? `${WEBUI_BASE_URL}/static/favicon.png`,
 					suggestion_prompts: modelInfo.meta.suggestion_prompts
-						? modelInfo.meta.suggestion_prompts.filter((prompt) => prompt.content !== '')
+						? modelInfo.meta.suggestion_prompts.filter((prompt: any) => prompt.content !== '')
 						: null
 				},
 				params: { ...modelInfo.params }
@@ -49,16 +49,17 @@
 				await models.set(
 					await getModels(
 						localStorage.token,
-						$config?.features?.enable_direct_connections && ($settings?.directConnections ?? null)
+						($config?.features?.enable_direct_connections &&
+							($settings?.directConnections ?? null)) as any
 					)
 				);
-				toast.success($i18n.t('Model created successfully!'));
+				toast.success($i18n.t('OpenClaw profile created successfully!'));
 				await goto('/workspace/models');
 			}
 		}
 	};
 
-	let model = null;
+	let model: any = null;
 
 	onMount(() => {
 		const handleMessageEvent = async (event: MessageEvent) => {

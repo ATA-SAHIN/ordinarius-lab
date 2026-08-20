@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
+	import { type Writable } from 'svelte/store';
 	import { toast } from 'svelte-sonner';
 
 	import {
@@ -16,9 +17,9 @@
 		user
 	} from '$lib/stores';
 
-	import { slide } from 'svelte/transition';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
+	import type { ChatHistory } from '$lib/types/chat';
 
 	import ShareChatModal from '../chat/ShareChatModal.svelte';
 	import ModelSelector from '../chat/ModelSelector.svelte';
@@ -40,22 +41,22 @@
 	import Knobs from '../icons/Knobs.svelte';
 	import { WEBUI_API_BASE_URL } from '$lib/constants';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<{ t: (k: string, p?: Record<string, any>) => string }>>('i18n');
 
-	export let initNewChat: Function;
+	export let initNewChat: () => void;
 	export let shareEnabled: boolean = false;
 	export let scrollTop = 0;
 
-	export let chat;
-	export let history;
-	export let selectedModels;
+	export let chat: any;
+	export let history: ChatHistory;
+	export let selectedModels: string[];
 	export let showModelSelector = true;
 
-	export let onSaveTempChat: () => {};
+	export let onSaveTempChat: () => void;
 	export let archiveChatHandler: (id: string) => void;
 	export let moveChatHandler: (id: string, folderId: string) => void;
 
-	let closedBannerIds = [];
+	let closedBannerIds: string[] = [];
 
 	let showShareChatModal = false;
 	let showDownloadChatModal = false;
@@ -117,7 +118,7 @@
 				</div>
 
 				<div class="self-start flex flex-none items-center text-gray-600 dark:text-gray-400">
-					<!-- <div class="md:hidden flex self-center w-[1px] h-5 mx-2 bg-gray-300 dark:bg-stone-700" /> -->
+					<!-- <div class="md:hidden flex self-center w-[1px] h-5 mx-2 bg-gray-300 dark:bg-stone-700" ></div> -->
 
 					{#if $user?.role === 'user' ? ($user?.permissions?.chat?.temporary ?? true) && !($user?.permissions?.chat?.temporary_enforced ?? false) : true}
 						{#if !chat?.id}
@@ -144,6 +145,7 @@
 											window.history.replaceState(null, '', location.pathname);
 										}
 									}}
+									aria-label={$i18n.t('Temporary Chat')}
 								>
 									<div class=" m-auto self-center">
 										{#if $temporaryChatEnabled}
@@ -162,6 +164,7 @@
 									on:click={async () => {
 										onSaveTempChat();
 									}}
+									aria-label={$i18n.t('Save Chat')}
 								>
 									<div class=" m-auto self-center">
 										<ChatCheck className=" size-4.5" strokeWidth="1.5" />
@@ -204,6 +207,7 @@
 							<button
 								class="flex cursor-pointer px-2 py-2 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-850 transition"
 								id="chat-context-menu-button"
+								aria-label={$i18n.t('Chat Context Menu')}
 							>
 								<div class=" m-auto self-center">
 									<EllipsisHorizontal className=" size-5" strokeWidth="1.5" />
@@ -212,7 +216,7 @@
 						</Menu>
 					{/if}
 
-					{#if $user?.role === 'admin' || ($user?.permissions.chat?.controls ?? true)}
+					{#if $user?.role === 'admin' || ($user?.permissions?.chat?.controls ?? true)}
 						<Tooltip content={$i18n.t('Controls')}>
 							<button
 								class=" flex cursor-pointer px-2 py-2 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-850 transition"
@@ -272,6 +276,8 @@
 					{#if ($config?.license_metadata?.type ?? null) === 'trial'}
 						<Banner
 							banner={{
+								id: 'trial-license',
+								timestamp: Date.now(),
 								type: 'info',
 								title: 'Trial License',
 								content: $i18n.t(
@@ -284,6 +290,8 @@
 					{#if ($config?.license_metadata?.seats ?? null) !== null && $config?.user_count > $config?.license_metadata?.seats}
 						<Banner
 							banner={{
+								id: 'license-error',
+								timestamp: Date.now(),
 								type: 'error',
 								title: 'License Error',
 								content: $i18n.t(
@@ -293,20 +301,23 @@
 						/>
 					{/if}
 
-					{#each $banners.filter((b) => ![...JSON.parse(localStorage.getItem('dismissedBannerIds') ?? '[]'), ...closedBannerIds].includes(b.id)) as banner (banner.id)}
+					{#each $banners.filter((b) => ![...(JSON.parse(localStorage.getItem('dismissedBannerIds') ?? '[]') as string[]), ...closedBannerIds].includes(b.id)) as banner (banner.id)}
 						<Banner
 							{banner}
 							on:dismiss={(e) => {
 								const bannerId = e.detail;
 
 								if (banner.dismissible) {
+									const dismissedBannerIds = JSON.parse(
+										localStorage.getItem('dismissedBannerIds') ?? '[]'
+									) as string[];
+
 									localStorage.setItem(
 										'dismissedBannerIds',
 										JSON.stringify(
-											[
-												bannerId,
-												...JSON.parse(localStorage.getItem('dismissedBannerIds') ?? '[]')
-											].filter((id) => $banners.find((b) => b.id === id))
+											[bannerId, ...dismissedBannerIds].filter((id) =>
+												$banners.find((b) => b.id === id)
+											)
 										)
 									);
 								} else {

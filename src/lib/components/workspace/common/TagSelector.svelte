@@ -1,26 +1,29 @@
 <script lang="ts">
 	import { Select } from 'bits-ui';
 	import { getContext } from 'svelte';
+	import type { Writable } from 'svelte/store';
 
 	import ChevronDown from '$lib/components/icons/ChevronDown.svelte';
 	import Check from '$lib/components/icons/Check.svelte';
 	import XMark from '$lib/components/icons/XMark.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<{ t: (k: string) => string }>>('i18n');
 
-	export let value = '';
-	export let placeholder = $i18n.t('Tag');
+	export let value: string = '';
+	export let placeholder: string = $i18n.t('Tag');
 	export let onChange: (value: string) => void = () => {};
 
-	export let items = [];
+	export let items: { value: string; label: string }[] = [];
 </script>
 
 <Select.Root
-	selected={value ? items.find((item) => item.value === value) : null}
+	selected={value ? items.find((item) => item.value === value) : undefined}
 	{items}
 	onSelectedChange={(selectedItem) => {
-		value = selectedItem.value;
-		onChange(value);
+		if (selectedItem) {
+			value = selectedItem.value;
+			onChange(value);
+		}
 	}}
 >
 	<Select.Trigger

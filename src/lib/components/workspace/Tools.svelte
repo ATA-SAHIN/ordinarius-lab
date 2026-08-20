@@ -4,9 +4,11 @@
 	const { saveAs } = fileSaver;
 
 	import { onMount, getContext, tick, onDestroy } from 'svelte';
-	const i18n = getContext('i18n');
+	import type { Writable } from 'svelte/store';
+	const i18n = getContext<Writable<{ t: (k: string, p?: Record<string, any>) => string }>>('i18n');
 
 	import { WEBUI_NAME, config, tools as _tools, user } from '$lib/stores';
+	import type { Tool, AccessGrant } from '$lib/types';
 
 	import { goto } from '$app/navigation';
 	import {
@@ -42,8 +44,8 @@
 	let shiftKey = false;
 	let loaded = false;
 
-	let toolsImportInputElement: HTMLInputElement;
-	let importFiles;
+	let toolsImportInputElement: HTMLInputElement | undefined;
+	let importFiles: FileList | undefined;
 
 	let showConfirm = false;
 	let query = '';
@@ -51,12 +53,12 @@
 
 	let showManifestModal = false;
 	let showValvesModal = false;
-	let selectedTool = null;
+	let selectedTool: Tool | null = null;
 
 	let showDeleteConfirm = false;
 
-	let tools = [];
-	let filteredItems = [];
+	let tools: Tool[] = [];
+	let filteredItems: Tool[] = [];
 
 	let tagsContainerElement: HTMLDivElement;
 	let viewOption = '';
@@ -90,11 +92,13 @@
 		});
 	};
 
-	const shareHandler = async (tool) => {
+	const shareHandler = async (tool: Tool) => {
 		const item = await getToolById(localStorage.token, tool.id).catch((error) => {
 			toast.error(`${error}`);
 			return null;
 		});
+
+		if (!item) return;
 
 		toast.success($i18n.t('Redirecting you to Open WebUI Community'));
 
@@ -102,10 +106,10 @@
 
 		const tab = await window.open(`${url}/tools/create`, '_blank');
 
-		const messageHandler = (event) => {
+		const messageHandler = (event: MessageEvent) => {
 			if (event.origin !== url) return;
 			if (event.data === 'loaded') {
-				tab.postMessage(JSON.stringify(item), '*');
+				tab?.postMessage(JSON.stringify(item), '*');
 				window.removeEventListener('message', messageHandler);
 			}
 		};
@@ -114,7 +118,7 @@
 		console.log(item);
 	};
 
-	const cloneHandler = async (tool) => {
+	const cloneHandler = async (tool: Tool) => {
 		const _tool = await getToolById(localStorage.token, tool.id).catch((error) => {
 			toast.error(`${error}`);
 			return null;
@@ -130,7 +134,7 @@
 		}
 	};
 
-	const exportHandler = async (tool) => {
+	const exportHandler = async (tool: Tool) => {
 		const _tool = await getToolById(localStorage.token, tool.id).catch((error) => {
 			toast.error(`${error}`);
 			return null;
@@ -144,7 +148,7 @@
 		}
 	};
 
-	const deleteHandler = async (tool) => {
+	const deleteHandler = async (tool: Tool) => {
 		const res = await deleteToolById(localStorage.token, tool.id).catch((error) => {
 			toast.error(`${error}`);
 			return null;
@@ -161,18 +165,16 @@
 		_tools.set(await getTools(localStorage.token));
 	};
 
-	onMount(async () => {
+	onMount(() => {
 		viewOption = localStorage?.workspaceViewOption || '';
-		await init();
-		loaded = true;
 
-		const onKeyDown = (event) => {
+		const onKeyDown = (event: KeyboardEvent) => {
 			if (event.key === 'Shift') {
 				shiftKey = true;
 			}
 		};
 
-		const onKeyUp = (event) => {
+		const onKeyUp = (event: KeyboardEvent) => {
 			if (event.key === 'Shift') {
 				shiftKey = false;
 			}
@@ -184,13 +186,17 @@
 
 		window.addEventListener('keydown', onKeyDown);
 		window.addEventListener('keyup', onKeyUp);
-		window.addEventListener('blur-sm', onBlur);
+		window.addEventListener('blur', onBlur);
+
+		init().then(() => {
+			loaded = true;
+		});
 
 		return () => {
 			clearTimeout(searchDebounceTimer);
 			window.removeEventListener('keydown', onKeyDown);
 			window.removeEventListener('keyup', onKeyUp);
-			window.removeEventListener('blur-sm', onBlur);
+			window.removeEventListener('blur', onBlur);
 		};
 	});
 
@@ -207,13 +213,13 @@
 
 <ImportModal
 	bind:show={showImportModal}
-	onImport={(tool) => {
+	onImport={(tool: Tool) => {
 		sessionStorage.tool = JSON.stringify({
 			...tool
 		});
 		goto('/workspace/tools/create');
 	}}
-	loadUrlHandler={async (url) => {
+	loadUrlHandler={async (url: string) => {
 		return await loadToolByUrl(localStorage.token, url);
 	}}
 	successMessage={$i18n.t('Tool imported successfully')}
@@ -250,7 +256,7 @@
 					<button
 						class="flex text-xs items-center space-x-1 px-3 py-1.5 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-gray-850 dark:hover:bg-gray-800 dark:text-gray-200 transition"
 						on:click={() => {
-							toolsImportInputElement.click();
+							toolsImportInputElement?.click();
 						}}
 					>
 						<div class=" self-center font-medium line-clamp-1">
@@ -593,23 +599,27 @@
 		bind:show={showDeleteConfirm}
 		title={$i18n.t('Delete tool?')}
 		on:confirm={() => {
-			deleteHandler(selectedTool);
+			if (selectedTool) {
+				deleteHandler(selectedTool);
+			}
 		}}
 	>
 		<div class=" text-sm text-gray-500 truncate">
-			{$i18n.t('This will delete')} <span class="  font-medium">{selectedTool.name}</span>.
+			{$i18n.t('This will delete')} <span class="  font-medium">{selectedTool?.name ?? ''}</span>.
 		</div>
 	</DeleteConfirmDialog>
 
-	<ValvesModal bind:show={showValvesModal} type="tool" id={selectedTool?.id ?? null} />
-	<ManifestModal bind:show={showManifestModal} manifest={selectedTool?.meta?.manifest ?? {}} />
+	{#if selectedTool}
+		<ValvesModal bind:show={showValvesModal} type="tool" id={selectedTool.id} />
+		<ManifestModal bind:show={showManifestModal} manifest={selectedTool?.meta?.manifest ?? {}} />
+	{/if}
 
 	<ConfirmDialog
 		bind:show={showConfirm}
 		on:confirm={() => {
 			const reader = new FileReader();
-			reader.onload = async (event) => {
-				const _tools = JSON.parse(event.target.result);
+			reader.onload = async (event: ProgressEvent<FileReader>) => {
+				const _tools = JSON.parse(event.target?.result as string);
 				console.log(_tools);
 
 				for (const tool of _tools) {
@@ -621,11 +631,15 @@
 
 				toast.success($i18n.t('Tool imported successfully'));
 				await init();
-				importFiles = null;
-				toolsImportInputElement.value = '';
+				importFiles = undefined;
+				if (toolsImportInputElement) {
+					toolsImportInputElement.value = '';
+				}
 			};
 
-			reader.readAsText(importFiles[0]);
+			if (importFiles && importFiles.length > 0) {
+				reader.readAsText(importFiles[0]);
+			}
 		}}
 	>
 		<div class="text-sm text-gray-500">

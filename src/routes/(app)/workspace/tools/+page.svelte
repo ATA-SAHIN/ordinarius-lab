@@ -1,7 +1,5 @@
-<script>
-	import { onMount } from 'svelte';
-
-	import Tools from '$lib/components/workspace/Tools.svelte';
+<script lang="ts">
+	import OpenClawToolsEditorPage from '$lib/components/workspace/openclaw/OpenClawToolsEditorPage.svelte';
 </script>
 
-<Tools />
+<OpenClawToolsEditorPage />

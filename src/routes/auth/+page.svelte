@@ -19,6 +19,7 @@
 
 	import { WEBUI_API_BASE_URL, WEBUI_BASE_URL } from '$lib/constants';
 	import { WEBUI_NAME, config, user, socket } from '$lib/stores';
+	import type { SessionUser } from '$lib/types';
 
 	import { generateInitialsImage, canvasPixelTest, getUserTimezone } from '$lib/utils';
 
@@ -31,9 +32,9 @@
 
 	let loaded = false;
 
-	let mode = $config?.features.enable_ldap ? 'ldap' : 'signin';
+	let mode = ($config as any)?.features?.enable_ldap ? 'ldap' : 'signin';
 
-	let form = null;
+	let form: string | null = null;
 
 	let name = '';
 	let email = '';
@@ -42,14 +43,17 @@
 
 	let ldapUsername = '';
 
-	const setSessionUser = async (sessionUser, redirectPath: string | null = null) => {
+	const setSessionUser = async (
+		sessionUser: SessionUser | null,
+		redirectPath: string | null = null
+	) => {
 		if (sessionUser) {
 			console.log(sessionUser);
 			toast.success($i18n.t(`You're now logged in.`));
 			if (sessionUser.token) {
 				localStorage.token = sessionUser.token;
 			}
-			$socket.emit('user-join', { auth: { token: sessionUser.token } });
+			$socket?.emit('user-join', { auth: { token: sessionUser.token } });
 			await user.set(sessionUser);
 			await config.set(await getBackendConfig());
 
@@ -115,7 +119,7 @@
 
 	const oauthCallbackHandler = async () => {
 		// Get the value of the 'token' cookie
-		function getCookie(name) {
+		function getCookie(name: string) {
 			const match = document.cookie.match(
 				new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]*)')
 			);
@@ -144,7 +148,7 @@
 
 	async function setLogoImage() {
 		await tick();
-		const logo = document.getElementById('logo');
+		const logo = document.getElementById('logo') as HTMLImageElement | null;
 
 		if (logo) {
 			const isDarkMode = document.documentElement.classList.contains('dark');
@@ -154,12 +158,16 @@
 				darkImage.src = `${WEBUI_BASE_URL}/static/favicon-dark.png`;
 
 				darkImage.onload = () => {
-					logo.src = `${WEBUI_BASE_URL}/static/favicon-dark.png`;
-					logo.style.filter = ''; // Ensure no inversion is applied if favicon-dark.png exists
+					if (logo) {
+						logo.src = `${WEBUI_BASE_URL}/static/favicon-dark.png`;
+						logo.style.filter = ''; // Ensure no inversion is applied if favicon-dark.png exists
+					}
 				};
 
 				darkImage.onerror = () => {
-					logo.style.filter = 'invert(1)'; // Invert image if favicon-dark.png is missing
+					if (logo) {
+						logo.style.filter = 'invert(1)'; // Invert image if favicon-dark.png is missing
+					}
 				};
 			}
 		}
@@ -211,7 +219,7 @@
 <div class="w-full h-screen max-h-[100dvh] text-white relative" id="auth-page">
 	<div class="w-full h-full absolute top-0 left-0 bg-white dark:bg-black"></div>
 
-	<div class="w-full absolute top-0 left-0 right-0 h-8 drag-region" />
+	<div class="w-full absolute top-0 left-0 right-0 h-8 drag-region"></div>
 
 	{#if loaded}
 		<div
@@ -338,13 +346,11 @@
 												bind:value={password}
 												type="password"
 												id="password"
-												class="my-0.5 w-full text-sm outline-hidden bg-transparent placeholder:text-gray-300 dark:placeholder:text-gray-600"
+												inputClassName="my-0.5 w-full text-sm outline-hidden bg-transparent placeholder:text-gray-300 dark:placeholder:text-gray-600"
 												placeholder={$i18n.t('Enter Your Password')}
 												autocomplete={mode === 'signup' ? 'new-password' : 'current-password'}
-												name="password"
 												screenReader={true}
 												required
-												aria-required="true"
 											/>
 										</div>
 
@@ -359,10 +365,9 @@
 													bind:value={confirmPassword}
 													type="password"
 													id="confirm-password"
-													class="my-0.5 w-full text-sm outline-hidden bg-transparent"
+													inputClassName="my-0.5 w-full text-sm outline-hidden bg-transparent"
 													placeholder={$i18n.t('Confirm Your Password')}
 													autocomplete="new-password"
-													name="confirm-password"
 													required
 												/>
 											</div>

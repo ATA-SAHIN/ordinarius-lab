@@ -99,18 +99,19 @@
 		try {
 			const { start, end } = getDateRange(selectedPeriod);
 			const granularity = selectedPeriod === '24h' ? 'hourly' : 'daily';
-			const [summaryRes, modelsRes, usersRes, dailyRes, tokensRes] = await Promise.all([
-				getSummary(localStorage.token, start, end, selectedGroupId),
-				getModelAnalytics(localStorage.token, start, end, selectedGroupId),
-				getUserAnalytics(localStorage.token, start, end, 50, selectedGroupId),
-				getDailyStats(localStorage.token, start, end, granularity, selectedGroupId),
-				getTokenUsage(localStorage.token, start, end, selectedGroupId)
-			]);
+			const [summaryRes, modelsRes, usersRes, dailyRes, tokensRes]: [any, any, any, any, any] =
+				await Promise.all([
+					getSummary(localStorage.token, start, end, selectedGroupId),
+					getModelAnalytics(localStorage.token, start, end, selectedGroupId),
+					getUserAnalytics(localStorage.token, start, end, 50, selectedGroupId),
+					getDailyStats(localStorage.token, start, end, granularity, selectedGroupId),
+					getTokenUsage(localStorage.token, start, end, selectedGroupId)
+				]);
 
 			summary = summaryRes ?? summary;
 
 			const modelsMap = new Map($models.map((m) => [m.id, m.name || m.id]));
-			modelStats = (modelsRes?.models ?? []).map((entry) => ({
+			modelStats = (modelsRes?.models ?? []).map((entry: { model_id: string; count: number }) => ({
 				...entry,
 				name: modelsMap.get(entry.model_id) || entry.model_id
 			}));
@@ -156,7 +157,9 @@
 
 	$: sortedModels = [...modelStats].sort((a, b) => {
 		if (modelOrderBy === 'name') {
-			return modelDirection === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
+			const nameA = a.name ?? a.model_id;
+			const nameB = b.name ?? b.model_id;
+			return modelDirection === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
 		}
 		if (modelOrderBy === 'tokens') {
 			const aTokens = tokenStats[a.model_id]?.total_tokens ?? 0;
@@ -173,8 +176,8 @@
 			return userDirection === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
 		}
 		if (userOrderBy === 'tokens') {
-			const aTokens = a.total_tokens ?? 0;
-			const bTokens = b.total_tokens ?? 0;
+			const aTokens = (a as any).total_tokens ?? 0;
+			const bTokens = (b as any).total_tokens ?? 0;
 			return userDirection === 'asc' ? aTokens - bTokens : bTokens - aTokens;
 		}
 		return userDirection === 'asc' ? a.count - b.count : b.count - a.count;
@@ -281,7 +284,7 @@
 				models={topModels}
 				colors={chartColors}
 				height={200}
-				period={periodMap[selectedPeriod] || 'week'}
+				period={(periodMap as any)[selectedPeriod] || 'week'}
 			/>
 		</div>
 	{/if}
@@ -382,7 +385,7 @@
 							<tr
 								class="bg-white dark:bg-gray-900 dark:border-gray-850 text-xs cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
 								on:click={() => {
-									selectedModel = { id: model.model_id, name: model.name };
+									selectedModel = { id: model.model_id, name: model.name || model.model_id };
 									showModelModal = true;
 								}}
 							>
@@ -394,7 +397,8 @@
 											alt={model.name}
 											class="size-5 rounded-full object-cover shrink-0"
 											on:error={(e) => {
-												e.target.src = '/favicon.png';
+												const target = e.target as HTMLImageElement;
+												target.src = '/favicon.png';
 											}}
 										/>
 										<span class="truncate max-w-[150px]">{model.name}</span>
@@ -500,7 +504,8 @@
 											alt={user.name || 'User'}
 											class="size-5 rounded-full object-cover shrink-0"
 											on:error={(e) => {
-												e.target.src = '/user.png';
+												const target = e.target as HTMLImageElement;
+												target.src = '/user.png';
 											}}
 										/>
 										<span class="truncate max-w-[150px]"
@@ -509,7 +514,8 @@
 									</div>
 								</td>
 								<td class="px-3 py-1 text-right">{user.count.toLocaleString()}</td>
-								<td class="px-3 py-1 text-right">{formatNumber(user.total_tokens ?? 0)}</td>
+								<td class="px-3 py-1 text-right">{formatNumber((user as any).total_tokens ?? 0)}</td
+								>
 							</tr>
 						{/each}
 						{#if sortedUsers.length === 0}

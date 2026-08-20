@@ -14,12 +14,14 @@
 	import Spinner from '$lib/components/common/Spinner.svelte';
 	import ChatsModal from '$lib/components/layout/ChatsModal.svelte';
 
+	import type { User } from '$lib/types';
+
 	const i18n = getContext('i18n');
 
 	export let show = false;
-	export let user;
+	export let user: User;
 
-	let chatList = null;
+	let chatList: any[] | null = null;
 	let page = 1;
 
 	let query = '';
@@ -40,7 +42,7 @@
 	let allChatsLoaded = false;
 	let chatListLoading = false;
 
-	let searchDebounceTimeout;
+	let searchDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	const searchHandler = async () => {
 		if (!show) {
@@ -81,7 +83,7 @@
 		allChatsLoaded = newChatList.length === 0;
 
 		if (newChatList.length > 0) {
-			chatList = [...chatList, ...newChatList];
+			chatList = [...(chatList ?? []), ...newChatList];
 		}
 
 		chatListLoading = false;
@@ -112,7 +114,7 @@
 	})}
 	emptyPlaceholder={$i18n.t('No chats found for this user.')}
 	shareUrl={true}
-	{chatList}
+	chatList={chatList ?? []}
 	{allChatsLoaded}
 	{chatListLoading}
 	onUpdate={() => {

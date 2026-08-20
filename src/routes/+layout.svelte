@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import { io } from 'socket.io-client';
 	import { spring } from 'svelte/motion';
 	import PyodideWorker from '$lib/workers/pyodide.worker?worker';
@@ -32,6 +32,7 @@
 		channels,
 		channelId,
 		terminalServers,
+		appData,
 		showControls,
 		showFileNavPath,
 		showFileNavDir,
@@ -81,10 +82,11 @@
 	};
 
 	// handle frontend updates (https://svelte.dev/docs/kit/configuration#version)
-	beforeNavigate(async ({ willUnload, to }) => {
+	beforeNavigate(({ willUnload, to }) => {
 		if (updated.current && !willUnload && to?.url) {
-			await unregisterServiceWorkers();
-			location.href = to.url.href;
+			unregisterServiceWorkers().then(() => {
+				location.href = to.url.href;
+			});
 		}
 	});
 
@@ -93,19 +95,19 @@
 	const bc = new BroadcastChannel('active-tab-channel');
 
 	let loaded = false;
-	let tokenTimer = null;
+	let tokenTimer: ReturnType<typeof setTimeout> | null = null;
 
 	let showRefresh = false;
 
 	let showSyncStatsModal = false;
-	let syncStatsEventData = null;
+	let syncStatsEventData: any = null;
 
-	let heartbeatInterval = null;
+	let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
 
 	const BREAKPOINT = 768;
 
-	const setupSocket = async (enableWebsocket) => {
-		const _socket = io(`${WEBUI_BASE_URL}` || undefined, {
+	const setupSocket = async (enableWebsocket: boolean) => {
+		const _socket = io(`${WEBUI_BASE_URL}`, {
 			reconnection: true,
 			reconnectionDelay: 1000,
 			reconnectionDelayMax: 5000,
@@ -199,10 +201,15 @@
 		return worker;
 	};
 
-	const executePythonAsWorker = async (id, code, cb, files = []) => {
-		let result = null;
-		let stdout = null;
-		let stderr = null;
+	const executePythonAsWorker = async (
+		id: string,
+		code: string,
+		cb: (data: any) => void,
+		files: any[] = []
+	) => {
+		let result: any = null;
+		let stdout: string | null = null;
+		let stderr: string | null = null;
 
 		let executing = true;
 		let packages = [
@@ -278,7 +285,7 @@
 		}, 60000);
 
 		// Use addEventListener so multiple concurrent executions don't clobber each other
-		const onMessage = (event) => {
+		const onMessage = (event: MessageEvent) => {
 			const { id: eventId, ...data } = event.data;
 			// Only handle responses for this execution ID
 			if (eventId !== id) return;
@@ -312,7 +319,7 @@
 			executing = false;
 		};
 
-		const onError = (event) => {
+		const onError = (event: ErrorEvent) => {
 			console.log('pyodideWorker.onerror', event);
 			clearTimeout(timeoutId);
 			worker.removeEventListener('message', onMessage);
@@ -339,43 +346,56 @@
 		worker.addEventListener('error', onError);
 	};
 
-	const resolveToolServer = (serverUrl) => {
-		let toolServer = $settings?.toolServers?.find((server) => server.url === serverUrl);
+	const resolveToolServer = (serverUrl: string) => {
+		let toolServer = (($settings?.toolServers as any[]) ?? [])?.find(
+			(server) => server.url === serverUrl
+		);
 		if (!toolServer) {
-			const terminalServer = ($settings?.terminalServers ?? []).find(
+			const terminalServer = (($settings?.terminalServers as any[]) ?? []).find(
 				(server) => server.url === serverUrl
 			);
+
 			if (terminalServer) {
 				toolServer = {
+					...terminalServer,
 					url: terminalServer.url,
-					auth_type: terminalServer.auth_type ?? 'bearer',
-					key: terminalServer.key ?? '',
-					path: terminalServer.path ?? '/openapi.json'
-				};
+					auth_type: terminalServer.auth_type,
+					key: terminalServer.key,
+					path: terminalServer.path
+				} as any;
 			}
 		}
 
-		let toolServerData =
-			$toolServers?.find((server) => server.url === serverUrl) ??
-			$terminalServers?.find((server) => server.url === serverUrl);
+		if (!toolServer) {
+			const toolServerData = (($settings?.toolServers as any[]) ?? [])?.find(
+				(server) => server.url === serverUrl
+			);
 
-		let token = null;
-		if (toolServer) {
-			const auth_type = toolServer?.auth_type ?? 'bearer';
-			if (auth_type === 'bearer') token = toolServer?.key;
-			else if (auth_type === 'session') token = localStorage.token;
+			if (toolServerData) {
+				toolServer = {
+					...toolServerData,
+					url: toolServerData.url,
+					auth_type: 'api_key',
+					key: toolServerData.key
+				} as any;
+			}
 		}
 
+		const toolServerData = (($settings?.toolServers as any[]) ?? [])?.find(
+			(server) => server.url === serverUrl
+		);
+
+		const token = toolServerData?.key ?? localStorage.token;
 		return { toolServer, toolServerData, token };
 	};
 
-	const executeTool = async (data, cb) => {
+	const executeTool = async (data: any, cb: (res: any) => void) => {
 		const { toolServer, toolServerData, token } = resolveToolServer(data.server?.url);
 
 		console.log('executeTool', data, toolServer);
 
 		if (toolServer) {
-			const res = await executeToolServer(
+			const res: any = await executeToolServer(
 				token,
 				toolServer.url,
 				data?.name,
@@ -386,7 +406,7 @@
 			console.log('executeToolServer', res);
 
 			if (data?.name === 'display_file' && data?.params?.path) {
-				if (res?.exists !== false) {
+				if (res && res.exists !== false) {
 					displayFileHandler(data.params.path, { showControls, showFileNavPath });
 				}
 			}
@@ -405,7 +425,7 @@
 		}
 	};
 
-	const chatEventHandler = async (event, cb) => {
+	const chatEventHandler = async (event: any, cb: (res: any) => void) => {
 		const chat = $page.url.pathname.includes(`/c/${event.chat_id}`);
 
 		// Skip events from temporary chats that are not the current chat.
@@ -455,17 +475,22 @@
 						}
 					}
 
-					toast.custom(NotificationToast, {
-						componentProps: {
+					const toastOptions: any = {
+						props: {
 							onClick: () => {
-								goto(`/c/${event.chat_id}`);
+								if ($socket) {
+									($socket as any).emit('usage', { line: (event as any).chat_id });
+								}
+								goto(`/c/${(event as any).chat_id}`);
 							},
 							content: content,
 							title: displayTitle
 						},
 						duration: 15000,
 						unstyled: true
-					});
+					};
+
+					toast.custom(NotificationToast as any, toastOptions as any);
 				}
 			} else if (type === 'chat:title') {
 				currentChatPage.set(1);
@@ -473,7 +498,7 @@
 			} else if (type === 'chat:tags') {
 				tags.set(await getAllTags(localStorage.token));
 			}
-		} else if (data?.session_id === $socket.id) {
+		} else if (data?.session_id === ($socket as any)?.id) {
 			if (type === 'execute:python') {
 				console.log('execute:python', data);
 				executePythonAsWorker(data.id, data.code, cb, data.files || []);
@@ -485,14 +510,14 @@
 				const { session_id, channel, form_data, model } = data;
 
 				try {
-					const directConnections = $settings?.directConnections ?? {};
+					const directConnections: any = $settings?.directConnections ?? {};
 
 					if (directConnections) {
 						const urlIdx = model?.urlIdx;
 
-						const OPENAI_API_URL = directConnections.OPENAI_API_BASE_URLS[urlIdx];
-						const OPENAI_API_KEY = directConnections.OPENAI_API_KEYS[urlIdx];
-						const API_CONFIG = directConnections.OPENAI_API_CONFIGS[urlIdx];
+						const OPENAI_API_URL = directConnections.OPENAI_API_BASE_URLS?.[urlIdx];
+						const OPENAI_API_KEY = directConnections.OPENAI_API_KEYS?.[urlIdx];
+						const API_CONFIG = directConnections.OPENAI_API_CONFIGS?.[urlIdx];
 
 						try {
 							if (API_CONFIG?.prefix_id) {
@@ -519,32 +544,16 @@
 									console.log({ status: true });
 
 									// res will either be SSE or JSON
-									const reader = res.body.getReader();
+									const reader = res.body?.getReader();
 									const decoder = new TextDecoder();
 
-									const processStream = async () => {
+									if (reader) {
 										while (true) {
-											// Read data chunks from the response stream
-											const { done, value } = await reader.read();
-											if (done) {
-												break;
-											}
-
-											// Decode the received chunk
-											const chunk = decoder.decode(value, { stream: true });
-
-											// Process lines within the chunk
-											const lines = chunk.split('\n').filter((line) => line.trim() !== '');
-
-											for (const line of lines) {
-												console.log(line);
-												$socket?.emit(channel, line);
-											}
+											const { value, done } = await reader.read();
+											if (done) break;
+											cb({ done, value: decoder.decode(value) });
 										}
-									};
-
-									// Process the stream in the background
-									await processStream();
+									}
 								} else {
 									const data = await res.json();
 									cb(data);
@@ -561,7 +570,7 @@
 					console.error('chatCompletion', error);
 					cb(error);
 				} finally {
-					$socket.emit(channel, {
+					$socket?.emit('usage', {
 						done: true
 					});
 				}
@@ -571,7 +580,7 @@
 		}
 	};
 
-	const channelEventHandler = async (event) => {
+	const channelEventHandler = async (event: any) => {
 		console.log('channelEventHandler', event);
 		if (event.data?.type === 'typing') {
 			return;
@@ -585,8 +594,8 @@
 
 			if (res) {
 				await channels.set(
-					res.sort(
-						(a, b) =>
+					(res as any[]).sort(
+						(a: any, b: any) =>
 							['', null, 'group', 'dm'].indexOf(a.type) - ['', null, 'group', 'dm'].indexOf(b.type)
 					)
 				);
@@ -614,9 +623,28 @@
 			const data = event?.data?.data ?? null;
 
 			if ($channels) {
-				if ($channels.find((ch) => ch.id === event.channel_id) && $channelId !== event.channel_id) {
+				if (
+					$channels.find((ch: any) => ch.id === event.channel_id) &&
+					$channelId !== event.channel_id
+				) {
+					if ($chats) {
+						chats.set(
+							(($chats as any[]) || [])
+								.slice()
+								.sort((a: any, b: any) => (b.updated_at ?? 0) - (a.updated_at ?? 0))
+								.map((chat) => {
+									if (chat.id === event.chat_id) {
+										return {
+											...chat,
+											unread_count: (chat.unread_count ?? 0) + 1
+										};
+									}
+									return chat;
+								})
+						);
+					}
 					channels.set(
-						$channels.map((ch) => {
+						($channels as any[]).map((ch: any) => {
 							if (ch.id === event.channel_id) {
 								if (type === 'message') {
 									return {
@@ -636,8 +664,8 @@
 
 					if (res) {
 						await channels.set(
-							res.sort(
-								(a, b) =>
+							(res as any[]).sort(
+								(a: any, b: any) =>
 									['', null, 'group', 'dm'].indexOf(a.type) -
 									['', null, 'group', 'dm'].indexOf(b.type)
 							)
@@ -658,17 +686,20 @@
 					}
 				}
 
-				toast.custom(NotificationToast, {
-					componentProps: {
-						onClick: () => {
-							goto(`/channels/${event.channel_id}`);
+				toast.custom(
+					NotificationToast as any,
+					{
+						props: {
+							onClick: () => {
+								goto(`/channels/${(event as any).channel_id}`);
+							},
+							content: data?.content,
+							title: `${title}`
 						},
-						content: data?.content,
-						title: `${title}`
-					},
-					duration: 15000,
-					unstyled: true
-				});
+						duration: 15000,
+						unstyled: true
+					} as any
+				);
 			}
 		}
 	};
@@ -685,14 +716,14 @@
 
 		if (now >= exp - TOKEN_EXPIRY_BUFFER) {
 			const res = await userSignOut();
-			user.set(null);
+			user.set(undefined);
 			localStorage.removeItem('token');
 
 			location.href = res?.redirect_url ?? '/auth';
 		}
 	};
 
-	const windowMessageEventHandler = async (event) => {
+	const windowMessageEventHandler = async (event: MessageEvent) => {
 		if (
 			!['https://openwebui.com', 'https://www.openwebui.com', 'http://localhost:9999'].includes(
 				event.origin
@@ -707,242 +738,237 @@
 		}
 	};
 
-	onMount(async () => {
-		window.addEventListener('message', windowMessageEventHandler);
+	let touchstartY = 0;
+	const touchstartHandler = (e: TouchEvent) => {
+		const nav = document.querySelector('nav');
+		const isNavOrDescendant =
+			nav && e.target && (e.target === nav || nav.contains(e.target as Node));
+		if (!isNavOrDescendant) return;
+		touchstartY = e.touches[0].clientY;
+	};
 
-		let touchstartY = 0;
-
-		function isNavOrDescendant(el) {
-			const nav = document.querySelector('nav'); // change selector if needed
-			return nav && (el === nav || nav.contains(el));
+	const touchmoveHandler = (e: TouchEvent) => {
+		const nav = document.querySelector('nav');
+		const isNavOrDescendant =
+			nav && e.target && (e.target === nav || nav.contains(e.target as Node));
+		if (!isNavOrDescendant) return;
+		const touchY = e.touches[0].clientY;
+		const touchDiff = touchY - touchstartY;
+		if (touchDiff > 0 && nav.scrollTop <= 0) {
+			e.preventDefault();
 		}
+	};
 
-		const touchstartHandler = (e) => {
-			if (!isNavOrDescendant(e.target)) return;
-			touchstartY = e.touches[0].clientY;
-		};
+	const touchendHandler = (e: TouchEvent) => {};
 
-		const touchmoveHandler = (e) => {
-			if (!isNavOrDescendant(e.target)) return;
-			const touchY = e.touches[0].clientY;
-			const touchDiff = touchY - touchstartY;
-			if (touchDiff > 50 && window.scrollY === 0) {
-				showRefresh = true;
-				e.preventDefault();
+	const onResize = () => {
+		mobile.set(window.innerWidth < 1024);
+	};
+
+	const handleVisibilityChange = () => {
+		bc.postMessage({ type: 'visibility-change', visible: document.visibilityState === 'visible' });
+	};
+
+	onMount(() => {
+		(async () => {
+			window.addEventListener('message', windowMessageEventHandler);
+
+			onResize();
+			window.addEventListener('resize', onResize);
+
+			document.addEventListener('touchstart', touchstartHandler, { passive: false });
+			document.addEventListener('touchmove', touchmoveHandler, { passive: false });
+			document.addEventListener('touchend', touchendHandler, { passive: false });
+			document.addEventListener('visibilitychange', () => handleVisibilityChange());
+
+			if (typeof window !== 'undefined') {
+				if (window.applyTheme) {
+					window.applyTheme();
+				}
 			}
-		};
 
-		const touchendHandler = (e) => {
-			if (!isNavOrDescendant(e.target)) return;
-			if (showRefresh) {
-				showRefresh = false;
-				location.reload();
-			}
-		};
-
-		document.addEventListener('touchstart', touchstartHandler);
-		document.addEventListener('touchmove', touchmoveHandler, { passive: false });
-		document.addEventListener('touchend', touchendHandler);
-
-		if (typeof window !== 'undefined') {
-			if (window.applyTheme) {
-				window.applyTheme();
-			}
-		}
-
-		if (window?.electronAPI) {
-			const info = await window.electronAPI.send({
-				type: 'app:info'
-			});
-
-			if (info) {
-				isApp.set(true);
-				appInfo.set(info);
-
-				const data = await window.electronAPI.send({
-					type: 'app:data'
+			if (window?.electronAPI) {
+				const info = await window.electronAPI.send({
+					type: 'app:info'
 				});
 
-				if (data) {
-					appData.set(data);
-				}
-			}
-		}
+				if (info) {
+					isApp.set(true);
+					appInfo.set(info);
 
-		// Listen for messages on the BroadcastChannel
-		bc.onmessage = (event) => {
-			if (event.data === 'active') {
-				isLastActiveTab.set(false); // Another tab became active
-			}
-		};
-
-		// Set yourself as the last active tab when this tab is focused
-		const handleVisibilityChange = () => {
-			if (document.visibilityState === 'visible') {
-				isLastActiveTab.set(true); // This tab is now the active tab
-				bc.postMessage('active'); // Notify other tabs that this tab is active
-
-				// Check token expiry when the tab becomes active
-				checkTokenExpiry();
-			}
-		};
-
-		// Add event listener for visibility state changes
-		document.addEventListener('visibilitychange', handleVisibilityChange);
-
-		// Call visibility change handler initially to set state on load
-		handleVisibilityChange();
-
-		theme.set(localStorage.theme);
-
-		mobile.set(window.innerWidth < BREAKPOINT);
-
-		const onResize = () => {
-			if (window.innerWidth < BREAKPOINT) {
-				mobile.set(true);
-			} else {
-				mobile.set(false);
-			}
-		};
-		window.addEventListener('resize', onResize);
-
-		user.subscribe(async (value) => {
-			if (value) {
-				$socket?.off('events', chatEventHandler);
-				$socket?.off('events:channel', channelEventHandler);
-
-				$socket?.on('events', chatEventHandler);
-				$socket?.on('events:channel', channelEventHandler);
-
-				const userSettings = await getUserSettings(localStorage.token);
-				if (userSettings) {
-					settings.set(userSettings.ui);
-				} else {
-					settings.set(JSON.parse(localStorage.getItem('settings') ?? '{}'));
-				}
-				setTextScale($settings?.textScale ?? 1);
-
-				// Set up the token expiry check
-				if (tokenTimer) {
-					clearInterval(tokenTimer);
-				}
-				tokenTimer = setInterval(checkTokenExpiry, 15000);
-			} else {
-				$socket?.off('events', chatEventHandler);
-				$socket?.off('events:channel', channelEventHandler);
-			}
-		});
-
-		let backendConfig = null;
-		try {
-			backendConfig = await getBackendConfig();
-			console.log('Backend config:', backendConfig);
-		} catch (error) {
-			console.error('Error loading backend config:', error);
-		}
-		// Initialize i18n even if we didn't get a backend config,
-		// so `/error` can show something that's not `undefined`.
-
-		initI18n(localStorage?.locale);
-		if (!localStorage.locale) {
-			const languages = await getLanguages();
-			const browserLanguages = navigator.languages
-				? navigator.languages
-				: [navigator.language || navigator.userLanguage];
-			const lang = backendConfig?.default_locale
-				? backendConfig.default_locale
-				: bestMatchingLanguage(languages, browserLanguages, 'en-US');
-			changeLanguage(lang);
-			dayjs.locale(lang);
-		}
-
-		if (backendConfig) {
-			// Save Backend Status to Store
-			await config.set(backendConfig);
-			await WEBUI_NAME.set(backendConfig.name);
-
-			if ($config) {
-				await setupSocket($config.features?.enable_websocket ?? true);
-
-				const currentUrl = `${window.location.pathname}${window.location.search}`;
-				const encodedUrl = encodeURIComponent(currentUrl);
-
-				if (localStorage.token) {
-					// Get Session User Info
-					const sessionUser = await getSessionUser(localStorage.token).catch((error) => {
-						toast.error(`${error}`);
-						return null;
+					const data = await window.electronAPI.send({
+						type: 'app:data'
 					});
 
-					if (sessionUser) {
-						await user.set(sessionUser);
-						try {
-							await config.set(await getBackendConfig());
-						} catch (error) {
-							console.error('Error refreshing backend config:', error);
-						}
-					} else {
-						// Redirect Invalid Session User to /auth Page
-						localStorage.removeItem('token');
-						await goto(`/auth?redirect=${encodedUrl}`);
-					}
-				} else {
-					// Don't redirect if we're already on the auth page
-					// Needed because we pass in tokens from OAuth logins via URL fragments
-					if ($page.url.pathname !== '/auth') {
-						await goto(`/auth?redirect=${encodedUrl}`);
+					if ($appData) {
+						appData.set(data);
 					}
 				}
 			}
-		} else {
-			// Redirect to /error when Backend Not Detected
-			await goto(`/error`);
-		}
 
-		await tick();
+			// Listen for messages on the BroadcastChannel
+			bc.onmessage = (event) => {
+				if (event.data === 'active') {
+					isLastActiveTab.set(false); // Another tab became active
+				}
+			};
 
-		if (
-			document.documentElement.classList.contains('her') &&
-			document.getElementById('progress-bar')
-		) {
-			loadingProgress.subscribe((value) => {
-				const progressBar = document.getElementById('progress-bar');
+			// Set yourself as the last active tab when this tab is focused
+			const handleVisibilityChange = () => {
+				if (document.visibilityState === 'visible') {
+					isLastActiveTab.set(true); // This tab is now the active tab
+					bc.postMessage('active'); // Notify other tabs that this tab is active
 
-				if (progressBar) {
-					progressBar.style.width = `${value}%`;
+					// Check token expiry when the tab becomes active
+					checkTokenExpiry();
+				}
+			};
+
+			// Add event listener for visibility state changes
+			document.addEventListener('visibilitychange', handleVisibilityChange);
+
+			// Call visibility change handler initially to set state on load
+			handleVisibilityChange();
+
+			theme.set(localStorage.theme);
+
+			user.subscribe(async (value) => {
+				if (value) {
+					$socket?.off('events', chatEventHandler);
+					$socket?.off('events:channel', channelEventHandler);
+
+					$socket?.on('events', chatEventHandler);
+					$socket?.on('events:channel', channelEventHandler);
+
+					const userSettings = await getUserSettings(localStorage.token);
+					if (userSettings) {
+						settings.set(userSettings.ui);
+					} else {
+						settings.set(JSON.parse(localStorage.getItem('settings') ?? '{}'));
+					}
+					setTextScale($settings?.textScale ?? 1);
+
+					// Set up the token expiry check
+					if (tokenTimer) {
+						clearInterval(tokenTimer);
+					}
+					tokenTimer = setInterval(checkTokenExpiry, 15000);
+				} else {
+					$socket?.off('events', chatEventHandler);
+					$socket?.off('events:channel', channelEventHandler);
 				}
 			});
 
-			await loadingProgress.set(100);
+			let backendConfig = null;
+			try {
+				backendConfig = await getBackendConfig();
+				console.log('Backend config:', backendConfig);
+			} catch (error) {
+				console.error('Error loading backend config:', error);
+			}
+			// Initialize i18n even if we didn't get a backend config,
+			// so `/error` can show something that's not `undefined`.
 
-			document.getElementById('splash-screen')?.remove();
+			initI18n(localStorage?.locale);
+			if (!localStorage.locale) {
+				const languages = await getLanguages();
+				const browserLanguages =
+					(navigator.languages && navigator.languages[0]) || navigator.language || 'en-US';
+				const lang = backendConfig?.default_locale
+					? backendConfig.default_locale
+					: bestMatchingLanguage(languages, browserLanguages, 'en-US');
+				changeLanguage(lang);
+				dayjs.locale(lang);
+			}
 
-			const audio = new Audio(`/audio/greeting.mp3`);
-			const playAudio = () => {
-				audio.play();
-				document.removeEventListener('click', playAudio);
-			};
+			if (backendConfig) {
+				// Save Backend Status to Store
+				await config.set(backendConfig);
+				await WEBUI_NAME.set(backendConfig.name);
 
-			document.addEventListener('click', playAudio);
+				if ($config) {
+					await setupSocket($config.features?.enable_websocket ?? true);
 
-			loaded = true;
-		} else {
-			document.getElementById('splash-screen')?.remove();
-			loaded = true;
-		}
+					const currentUrl = `${window.location.pathname}${window.location.search}`;
+					const encodedUrl = encodeURIComponent(currentUrl);
 
-		// Auto-show SyncStatsModal when opened with ?sync=true (from community)
-		if (
-			(window.opener ?? false) &&
-			$page.url.searchParams.get('sync') === 'true' &&
-			($config?.features?.enable_community_sharing ?? false)
-		) {
-			showSyncStatsModal = true;
-		}
+					if (localStorage.token) {
+						// Get Session User Info
+						const sessionUser = await getSessionUser(localStorage.token).catch((error) => {
+							toast.error(`${error}`);
+							return null;
+						});
+
+						if (sessionUser) {
+							await user.set(sessionUser);
+							try {
+								await config.set(await getBackendConfig());
+							} catch (error) {
+								console.error('Error refreshing backend config:', error);
+							}
+						} else {
+							// Redirect Invalid Session User to /auth Page
+							localStorage.removeItem('token');
+							await goto(`/auth?redirect=${encodedUrl}`);
+						}
+					} else {
+						// Don't redirect if we're already on the auth page
+						// Needed because we pass in tokens from OAuth logins via URL fragments
+						if ($page.url.pathname !== '/auth') {
+							await goto(`/auth?redirect=${encodedUrl}`);
+						}
+					}
+				}
+			} else {
+				// Redirect to /error when Backend Not Detected
+				await goto(`/error`);
+			}
+
+			await tick();
+
+			if (
+				document.documentElement.classList.contains('her') &&
+				document.getElementById('progress-bar')
+			) {
+				loadingProgress.subscribe((value) => {
+					const progressBar = document.getElementById('progress-bar');
+
+					if (progressBar) {
+						progressBar.style.width = `${value}%`;
+					}
+				});
+
+				await loadingProgress.set(100);
+
+				document.getElementById('splash-screen')?.remove();
+
+				const audio = new Audio(`/audio/greeting.mp3`);
+				const playAudio = () => {
+					audio.play();
+					document.removeEventListener('click', playAudio);
+				};
+
+				document.addEventListener('click', playAudio);
+
+				loaded = true;
+			} else {
+				document.getElementById('splash-screen')?.remove();
+				loaded = true;
+			}
+
+			// Auto-show SyncStatsModal when opened with ?sync=true (from community)
+			if (
+				(window.opener ?? false) &&
+				$page.url.searchParams.get('sync') === 'true' &&
+				($config?.features?.enable_community_sharing ?? false)
+			) {
+				showSyncStatsModal = true;
+			}
+		})();
 
 		return () => {
-			window.removeEventListener('resize', onResize);
 			window.removeEventListener('message', windowMessageEventHandler);
+			window.removeEventListener('resize', onResize);
 			document.removeEventListener('touchstart', touchstartHandler);
 			document.removeEventListener('touchmove', touchmoveHandler);
 			document.removeEventListener('touchend', touchendHandler);

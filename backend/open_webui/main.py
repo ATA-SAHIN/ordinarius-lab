@@ -58,6 +58,7 @@ from starsessions import (
 from starsessions.stores.redis import RedisStore
 
 from open_webui.utils import logger
+from open_webui.utils.ordinarius_envelope import validate_ordinarius_envelope
 from open_webui.utils.audit import AuditLevel, AuditLoggingMiddleware
 from open_webui.utils.logger import start_logger
 from open_webui.socket.main import (
@@ -97,6 +98,11 @@ from open_webui.routers import (
     utils,
     scim,
     terminals,
+    claw_gateways,
+    claw_sandboxes,
+    claw_providers,
+    claw_memories,
+    claw_hooks,
 )
 
 from open_webui.routers.retrieval import (
@@ -1570,6 +1576,25 @@ app.include_router(functions.router, prefix="/api/v1/functions", tags=["function
 app.include_router(
     evaluations.router, prefix="/api/v1/evaluations", tags=["evaluations"]
 )
+
+# MPRA Integration - File Operations and Model Sharing
+from open_webui.routers.mpra import router as mpra_router, MpraAuthMiddleware
+app.add_middleware(MpraAuthMiddleware)
+app.include_router(mpra_router, prefix="/api/v1/mpra", tags=["mpra"])
+
+# OpenClaw Integration - Full Agent Configuration
+from open_webui.routers.openclaw import router as openclaw_router
+from open_webui.routers.openclaw_fork import router as openclaw_fork_router
+
+# Fork routes must register before the OpenClaw catch-all `/{path:path}` or `/fork/*` is swallowed.
+app.include_router(openclaw_fork_router, prefix="/api/v1/openclaw/fork", tags=["openclaw-fork"])
+app.include_router(openclaw_router, prefix="/api/v1/openclaw", tags=["openclaw"])
+app.include_router(claw_gateways.router, prefix="/api/v1/openclaw/gateways", tags=["openclaw"])
+app.include_router(claw_sandboxes.router, prefix="/api/v1/openclaw/sandboxes", tags=["openclaw"])
+app.include_router(claw_providers.router, prefix="/api/v1/openclaw/providers", tags=["openclaw"])
+app.include_router(claw_memories.router, prefix="/api/v1/openclaw/memories", tags=["openclaw"])
+app.include_router(claw_hooks.router, prefix="/api/v1/openclaw/hooks", tags=["openclaw"])
+
 if ENABLE_ADMIN_ANALYTICS:
     app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["analytics"])
 app.include_router(utils.router, prefix="/api/v1/utils", tags=["utils"])
@@ -1703,6 +1728,8 @@ async def chat_completion(
     model_id = form_data.get("model", None)
     model_item = form_data.pop("model_item", {})
     tasks = form_data.pop("background_tasks", None)
+    raw_ordinarius = form_data.pop("ordinarius", None)
+    validated_ordinarius = validate_ordinarius_envelope(raw_ordinarius)
 
     metadata = {}
     try:
@@ -1797,6 +1824,7 @@ async def chat_completion(
             "variables": form_data.get("variables", {}),
             "model": model,
             "direct": model_item.get("direct", False),
+            "ordinarius": validated_ordinarius,
             "params": {
                 "stream_delta_chunk_size": stream_delta_chunk_size,
                 "reasoning_tags": reasoning_tags,

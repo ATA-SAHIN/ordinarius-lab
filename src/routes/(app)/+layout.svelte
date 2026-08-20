@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
 	import { onMount, tick, getContext } from 'svelte';
-	import { openDB, deleteDB } from 'idb';
+	import { openDB, deleteDB, type IDBPDatabase } from 'idb';
 	import fileSaver from 'file-saver';
 	const { saveAs } = fileSaver;
 
@@ -39,6 +39,7 @@
 		showControls,
 		mobile
 	} from '$lib/stores';
+	import type { ChatListItem } from '$lib/types';
 
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
 	import SettingsModal from '$lib/components/chat/SettingsModal.svelte';
@@ -51,10 +52,10 @@
 	const i18n = getContext('i18n');
 
 	let loaded = false;
-	let DB = null;
-	let localDBChats = [];
+	let DB: IDBPDatabase | null = null;
+	let localDBChats: ChatListItem[] = [];
 
-	let version;
+	let version: { current: string; latest: string } | null = null;
 
 	const clearChatInputStorage = () => {
 		const chatInputKeys = Object.keys(localStorage).filter((key) => key.startsWith('chat-input'));
@@ -93,7 +94,8 @@
 
 		if (!userSettings) {
 			try {
-				userSettings = JSON.parse(localStorage.getItem('settings') ?? '{}');
+				const settingsStr = localStorage.getItem('settings');
+				userSettings = JSON.parse(settingsStr ?? '{}');
 			} catch (e: unknown) {
 				console.error('Failed to parse settings from localStorage', e);
 				userSettings = {};
@@ -110,16 +112,18 @@
 	};
 
 	const setModels = async () => {
-		models.set(
-			await getModels(
-				localStorage.token,
-				$config?.features?.enable_direct_connections ? ($settings?.directConnections ?? null) : null
-			)
-		);
+		const connections = $config?.features?.enable_direct_connections
+			? ($settings?.directConnections ?? null)
+			: null;
+		models.set(await getModels(localStorage.token, connections as any));
 	};
 
 	const setToolServers = async () => {
-		let toolServersData = await getToolServersData($settings?.toolServers ?? []);
+		const serversToFetch = ($settings?.toolServers ?? []).map((s) => ({
+			...s,
+			config: { enable: true }
+		}));
+		let toolServersData: any[] = await getToolServersData(serversToFetch);
 		toolServersData = toolServersData.filter((data) => {
 			if (!data || data.error) {
 				toast.error(
@@ -136,14 +140,16 @@
 		// Inject enabled terminal servers as always-on tool servers
 		const enabledTerminals = ($settings?.terminalServers ?? []).filter((s) => s.enabled);
 		if (enabledTerminals.length > 0) {
-			let terminalServersData = await getToolServersData(
-				enabledTerminals.map((t) => ({
-					url: t.url,
-					auth_type: t.auth_type ?? 'bearer',
-					key: t.key ?? '',
-					path: t.path ?? '/openapi.json',
-					config: { enable: true }
-				}))
+			let terminalServersData: any[] = await getToolServersData(
+				enabledTerminals.map((t) => {
+					return {
+						url: t.url,
+						auth_type: t.auth_type ?? 'bearer',
+						key: t.key ?? '',
+						path: t.path ?? '/openapi.json',
+						config: { enable: true }
+					};
+				})
 			);
 			terminalServersData = terminalServersData
 				.filter((data) => {
@@ -162,7 +168,7 @@
 					key: enabledTerminals[i]?.key ?? ''
 				}));
 
-			terminalServers.set(terminalServersData);
+			terminalServers.set(terminalServersData as any);
 		} else {
 			terminalServers.set([]);
 		}
@@ -177,7 +183,7 @@
 				name: t.name,
 				key: localStorage.token
 			}));
-			terminalServers.update((existing) => [...existing, ...terminalEntries]);
+			terminalServers.update((existing) => [...(existing as any[]), ...terminalEntries]);
 		}
 	};
 
@@ -214,7 +220,11 @@
 		]);
 
 		// Helper function to check if the pressed keys match the shortcut definition
-		const isShortcutMatch = (event: KeyboardEvent, shortcut): boolean => {
+		const isShortcutMatch = (
+			event: KeyboardEvent,
+			shortcut: { keys: string[] } | undefined
+		): boolean => {
+			if (!shortcut) return false;
 			const keys = shortcut?.keys || [];
 
 			const normalized = keys.map((k) => k.toLowerCase());
@@ -249,7 +259,7 @@
 				} else if (isShortcutMatch(event, shortcuts[Shortcut.NEW_CHAT])) {
 					console.log('Shortcut triggered: NEW_CHAT');
 					event.preventDefault();
-					document.getElementById('sidebar-new-chat-button')?.click();
+					(document.getElementById('sidebar-new-chat-button') as HTMLElement)?.click();
 				} else if (isShortcutMatch(event, shortcuts[Shortcut.FOCUS_INPUT])) {
 					console.log('Shortcut triggered: FOCUS_INPUT');
 					event.preventDefault();
@@ -257,11 +267,15 @@
 				} else if (isShortcutMatch(event, shortcuts[Shortcut.COPY_LAST_CODE_BLOCK])) {
 					console.log('Shortcut triggered: COPY_LAST_CODE_BLOCK');
 					event.preventDefault();
-					[...document.getElementsByClassName('copy-code-button')]?.at(-1)?.click();
+					([...document.getElementsByClassName('copy-code-button')] as HTMLElement[])
+						.at(-1)
+						?.click();
 				} else if (isShortcutMatch(event, shortcuts[Shortcut.COPY_LAST_RESPONSE])) {
 					console.log('Shortcut triggered: COPY_LAST_RESPONSE');
 					event.preventDefault();
-					[...document.getElementsByClassName('copy-response-button')]?.at(-1)?.click();
+					([...document.getElementsByClassName('copy-response-button')] as HTMLElement[])
+						.at(-1)
+						?.click();
 				} else if (isShortcutMatch(event, shortcuts[Shortcut.TOGGLE_SIDEBAR])) {
 					console.log('Shortcut triggered: TOGGLE_SIDEBAR');
 					event.preventDefault();
@@ -269,7 +283,7 @@
 				} else if (isShortcutMatch(event, shortcuts[Shortcut.DELETE_CHAT])) {
 					console.log('Shortcut triggered: DELETE_CHAT');
 					event.preventDefault();
-					document.getElementById('delete-chat-button')?.click();
+					(document.getElementById('delete-chat-button') as HTMLElement)?.click();
 				} else if (isShortcutMatch(event, shortcuts[Shortcut.OPEN_SETTINGS])) {
 					console.log('Shortcut triggered: OPEN_SETTINGS');
 					event.preventDefault();
@@ -286,7 +300,7 @@
 				} else if (isShortcutMatch(event, shortcuts[Shortcut.OPEN_MODEL_SELECTOR])) {
 					console.log('Shortcut triggered: OPEN_MODEL_SELECTOR');
 					event.preventDefault();
-					document.getElementById('model-selector-0-button')?.click();
+					(document.getElementById('model-selector-0-button') as HTMLElement)?.click();
 				} else if (isShortcutMatch(event, shortcuts[Shortcut.NEW_TEMPORARY_CHAT])) {
 					console.log('Shortcut triggered: NEW_TEMPORARY_CHAT');
 					event.preventDefault();
@@ -297,26 +311,28 @@
 					}
 					await goto('/');
 					setTimeout(() => {
-						document.getElementById('new-chat-button')?.click();
+						(document.getElementById('new-chat-button') as HTMLElement)?.click();
 					}, 0);
 				} else if (isShortcutMatch(event, shortcuts[Shortcut.GENERATE_MESSAGE_PAIR])) {
 					console.log('Shortcut triggered: GENERATE_MESSAGE_PAIR');
 					event.preventDefault();
-					document.getElementById('generate-message-pair-button')?.click();
+					(document.getElementById('generate-message-pair-button') as HTMLElement)?.click();
 				} else if (
 					isShortcutMatch(event, shortcuts[Shortcut.REGENERATE_RESPONSE]) &&
 					document.activeElement?.id === 'chat-input'
 				) {
 					console.log('Shortcut triggered: REGENERATE_RESPONSE');
 					event.preventDefault();
-					[...document.getElementsByClassName('regenerate-response-button')]?.at(-1)?.click();
+					([...document.getElementsByClassName('regenerate-response-button')] as HTMLElement[])
+						.at(-1)
+						?.click();
 				}
 			});
 		};
 		setupKeyboardShortcuts();
 
 		if ($user?.role === 'admin' && ($settings?.showChangelog ?? true)) {
-			showChangelog.set($settings?.version !== $config.version);
+			showChangelog.set($settings?.version !== $config?.version);
 		}
 
 		if ($user?.role === 'admin' || ($user?.permissions?.chat?.temporary ?? true)) {
@@ -336,7 +352,7 @@
 				const dismissedUpdateToast = new Date(Number(localStorage.dismissedUpdateToast));
 				const now = new Date();
 
-				if (now - dismissedUpdateToast > 24 * 60 * 60 * 1000) {
+				if (now.getTime() - dismissedUpdateToast.getTime() > 24 * 60 * 60 * 1000) {
 					checkForVersionUpdates();
 				}
 			} else {
@@ -420,9 +436,11 @@
 												});
 												saveAs(blob, `chat-export-${Date.now()}.json`);
 
-												const tx = DB.transaction('chats', 'readwrite');
-												await Promise.all([tx.store.clear(), tx.done]);
-												await deleteDB('Chats');
+												if (DB) {
+													const tx = DB.transaction('chats', 'readwrite');
+													await Promise.all([tx.store.clear(), tx.done]);
+													await deleteDB('Chats');
+												}
 
 												localDBChats = [];
 											}}

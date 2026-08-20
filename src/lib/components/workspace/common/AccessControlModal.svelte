@@ -6,12 +6,7 @@
 	import AccessControl from './AccessControl.svelte';
 	import XMark from '$lib/components/icons/XMark.svelte';
 
-	type AccessGrant = {
-		id?: string;
-		principal_type: 'user' | 'group';
-		principal_id: string;
-		permission: 'read' | 'write';
-	};
+	import type { AccessGrant } from '$lib/types';
 
 	export let show = false;
 	export let accessGrants: AccessGrant[] = [];

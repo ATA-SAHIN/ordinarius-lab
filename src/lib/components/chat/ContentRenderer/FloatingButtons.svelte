@@ -15,24 +15,32 @@
 	import Skeleton from '../Messages/Skeleton.svelte';
 	import { chatId, models, socket } from '$lib/stores';
 
-	export let id = '';
-	export let messageId = '';
+	import type { ChatMessage } from '$lib/types/chat';
+	import type { Model } from '$lib/types/models';
+	import type { Writable } from 'svelte/store';
 
-	export let model = null;
-	export let messages = [];
-	export let actions = [];
-	export let onAdd = (e) => {};
+	export let id: string = '';
+	export let messageId: string = '';
+
+	export let model: string | null = null;
+	export let messages: ChatMessage[] = [];
+	export let actions: any[] = [];
+	export let onAdd: (data: {
+		modelId: string | null;
+		parentId: string;
+		messages: ChatMessage[];
+	}) => void = (e) => {};
 
 	let floatingInput = false;
-	let selectedAction = null;
+	let selectedAction: any = null;
 
 	let selectedText = '';
 	let floatingInputValue = '';
 
 	let content = '';
-	let responseContent = null;
+	let responseContent: string | null = null;
 	let responseDone = false;
-	let controller = null;
+	let controller: AbortController | null = null;
 
 	$: if (actions.length === 0) {
 		actions = DEFAULT_ACTIONS;
@@ -67,7 +75,7 @@
 		}
 	};
 
-	const actionHandler = async (actionId) => {
+	const actionHandler = async (actionId: string) => {
 		if (!model) {
 			toast.error($i18n.t('Model not selected'));
 			return;
@@ -90,7 +98,7 @@
 		// Handle: {{variableId|tool:id="toolId"}} pattern
 		// This regex captures variableId and toolId from {{variableId|tool:id="toolId"}}
 		const varToolPattern = /\{\{(.*?)\|tool:id="([^"]+)"\}\}/g;
-		prompt = prompt.replace(varToolPattern, (match, variableId, toolId) => {
+		prompt = prompt.replace(varToolPattern, (match: string, variableId: string, toolId: string) => {
 			toolIds.push(toolId);
 			return variableId; // Replace with just variableId
 		});
@@ -144,7 +152,7 @@
 			stream: true // Enable streaming
 		});
 
-		if (res && res.ok) {
+		if (res && res.ok && res.body) {
 			const reader = res.body.getReader();
 			const decoder = new TextDecoder();
 
@@ -177,7 +185,7 @@
 
 									// Append the `content` field from the "choices" object
 									if (data.choices && data.choices[0]?.delta?.content) {
-										responseContent += data.choices[0].delta.content;
+										responseContent = (responseContent ?? '') + data.choices[0].delta.content;
 
 										autoScroll();
 									}
@@ -193,7 +201,7 @@
 			// Process the stream in the background
 			try {
 				await processStream();
-			} catch (e) {
+			} catch (e: any) {
 				if (e.name !== 'AbortError') {
 					console.error(e);
 				}
@@ -211,14 +219,14 @@
 			},
 			{
 				role: 'assistant',
-				content: responseContent
+				content: responseContent ?? ''
 			}
 		];
 
 		onAdd({
 			modelId: model,
 			parentId: messageId,
-			messages: messages
+			messages: messages as any
 		});
 	};
 

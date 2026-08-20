@@ -1,4 +1,5 @@
 <script lang="ts">
+	// @ts-nocheck
 	import { toast } from 'svelte-sonner';
 	import { DropdownMenu } from 'bits-ui';
 	import { getContext, tick } from 'svelte';

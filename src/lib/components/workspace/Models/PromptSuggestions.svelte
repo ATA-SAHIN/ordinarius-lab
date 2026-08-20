@@ -1,14 +1,17 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
+	import type { Writable } from 'svelte/store';
 	import { saveAs } from 'file-saver';
 	import { toast } from 'svelte-sonner';
+	import type { PromptSuggestion } from '$lib/types';
 	import Plus from '$lib/components/icons/Plus.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
-	const i18n = getContext('i18n');
 
-	export let promptSuggestions = [];
+	const i18n = getContext<Writable<{ t: (k: string) => string }>>('i18n');
 
-	let _promptSuggestions = [];
+	export let promptSuggestions: PromptSuggestion[] = [];
+
+	let _promptSuggestions: PromptSuggestion[] = [];
 
 	const setPromptSuggestions = () => {
 		_promptSuggestions = promptSuggestions.map((s) => {
@@ -18,7 +21,7 @@
 				s.title = ['', ''];
 			}
 			return s;
-		});
+		}) as PromptSuggestion[];
 	};
 
 	$: if (promptSuggestions) {
@@ -39,7 +42,8 @@
 				accept=".json"
 				hidden
 				on:change={(e) => {
-					const files = e.target.files;
+					const target = e.target as HTMLInputElement;
+					const files = target.files;
 					if (!files || files.length === 0) {
 						return;
 					}
@@ -49,7 +53,9 @@
 					let reader = new FileReader();
 					reader.onload = async (event) => {
 						try {
-							let suggestions = JSON.parse(event.target.result);
+							let suggestions: PromptSuggestion[] = JSON.parse(
+								(event.target as FileReader).result as string
+							);
 
 							suggestions = suggestions.map((s) => {
 								if (typeof s.title === 'string') {
@@ -70,7 +76,7 @@
 
 					reader.readAsText(files[0]);
 
-					e.target.value = ''; // Reset the input value
+					target.value = ''; // Reset the input value
 				}}
 			/>
 
@@ -78,7 +84,9 @@
 				class="flex text-xs items-center space-x-1 py-1 rounded-xl bg-transparent dark:text-gray-200 transition"
 				type="button"
 				on:click={() => {
-					const input = document.getElementById('prompt-suggestions-import-input');
+					const input = document.getElementById(
+						'prompt-suggestions-import-input'
+					) as HTMLInputElement;
 					if (input) {
 						input.click();
 					}
@@ -110,7 +118,7 @@
 				class=" px-1.5 rounded-xl transition font-medium text-sm flex items-center"
 				type="button"
 				on:click={() => {
-					if (promptSuggestions.length === 0 || promptSuggestions.at(-1).content !== '') {
+					if (promptSuggestions.length === 0 || promptSuggestions.at(-1)?.content !== '') {
 						promptSuggestions = [...promptSuggestions, { content: '', title: ['', ''] }];
 					}
 				}}
@@ -155,13 +163,14 @@
 								placeholder={$i18n.t('Prompt')}
 								rows="2"
 								bind:value={prompt.content}
-							/>
+							></textarea>
 						</Tooltip>
 					</div>
 
 					<button
 						class="p-1 self-start"
 						type="button"
+						aria-label={$i18n.t('Delete Suggestion')}
 						on:click={() => {
 							promptSuggestions.splice(promptIdx, 1);
 							promptSuggestions = promptSuggestions;

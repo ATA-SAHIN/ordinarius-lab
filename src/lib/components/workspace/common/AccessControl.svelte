@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getContext, onMount } from 'svelte';
-
-	const i18n = getContext('i18n');
+	import { toast } from 'svelte-sonner';
+	import type { Writable } from 'svelte/store';
 
 	import { getGroups, getGroupById, getGroupInfoById } from '$lib/apis/groups';
 	import { getUserInfoById } from '$lib/apis/users';
@@ -13,32 +13,29 @@
 	import AddAccessModal from './AddAccessModal.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 
-	type AccessGrant = {
-		id?: string;
-		principal_type: 'user' | 'group';
-		principal_id: string;
-		permission: 'read' | 'write';
-	};
+	import type { AccessGrant, User, Group } from '$lib/types/common';
+	const i18n = getContext<Writable<{ t: (k: string, p?: Record<string, any>) => string }>>('i18n');
 
 	type LegacyAccessControl = {
 		read: { group_ids: string[]; user_ids: string[] };
 		write: { group_ids: string[]; user_ids: string[] };
+		[key: string]: { group_ids: string[]; user_ids: string[] };
 	};
 
-	export let onChange: Function = () => {};
+	export let onChange: (grants: AccessGrant[]) => void = () => {};
 
-	export let accessRoles = ['read'];
-	export let accessGrants: AccessGrant[] | any = [];
-	export let accessControl: any = undefined;
+	export let accessRoles: string[] = ['read'];
+	export let accessGrants: AccessGrant[] = [];
+	export let accessControl: LegacyAccessControl | null | undefined = undefined;
 
-	export let share = true;
-	export let sharePublic = true;
-	export let shareUsers = true;
+	export let share: boolean = true;
+	export let sharePublic: boolean = true;
+	export let shareUsers: boolean = true;
 
-	let groups: any[] = [];
-	const resolvingGroupIds = new Set<string>();
-	let userById: Record<string, any> = {};
-	const resolvingUserIds = new Set<string>();
+	let groups: Group[] = [];
+	const resolvingGroupIds: Set<string> = new Set<string>();
+	let userById: Record<string, User> = {};
+	const resolvingUserIds: Set<string> = new Set<string>();
 
 	let showAddAccessModal = false;
 
@@ -59,7 +56,9 @@
 		return Array.from(map.values());
 	};
 
-	const legacyAccessControlToGrants = (accessControl: any): AccessGrant[] => {
+	const legacyAccessControlToGrants = (
+		accessControl: LegacyAccessControl | null | undefined
+	): AccessGrant[] => {
 		if (accessControl === null) {
 			return [
 				{
@@ -132,12 +131,14 @@
 		return result;
 	};
 
-	const normalizeInputToGrants = (value: any): AccessGrant[] => {
+	const normalizeInputToGrants = (
+		value: AccessGrant[] | LegacyAccessControl | null | undefined
+	): AccessGrant[] => {
 		if (value === null) {
 			return legacyAccessControlToGrants(null);
 		}
 		if (Array.isArray(value)) {
-			return dedupeAccessGrants(value);
+			return dedupeAccessGrants(value as AccessGrant[]);
 		}
 		if (value && typeof value === 'object' && ('read' in value || 'write' in value)) {
 			return legacyAccessControlToGrants(value);
@@ -145,7 +146,9 @@
 		return [];
 	};
 
-	const stableStringify = (value: any): string => {
+	const stableStringify = (
+		value: AccessGrant[] | LegacyAccessControl | null | undefined
+	): string => {
 		try {
 			return JSON.stringify(value ?? null);
 		} catch {
@@ -164,11 +167,12 @@
 
 	const getPrincipalIdsByPermission = (
 		principalType: 'user' | 'group',
-		permission: 'read' | 'write'
+		permission: 'read' | 'write',
+		_grants: AccessGrant[] // Add as argument to trigger reactivity
 	): string[] =>
 		Array.from(
 			new Set(
-				currentGrants()
+				_grants
 					.filter(
 						(grant) => grant.principal_type === principalType && grant.permission === permission
 					)
@@ -188,13 +192,13 @@
 				grant.permission === permission
 		);
 
-	const commitAccessGrants = (nextGrants: AccessGrant[]) => {
+	const commitAccessGrants = (nextGrants: AccessGrant[]): void => {
 		accessGrants = dedupeAccessGrants(nextGrants);
 		onChange(accessGrants);
 	};
 
-	const setPublic = (isPublic: boolean) => {
-		const filtered = currentGrants().filter(
+	const setPublic = (isPublic: boolean): void => {
+		const filtered = (currentGrants() as AccessGrant[]).filter(
 			(grant) =>
 				!(
 					grant.principal_type === 'user' &&
@@ -253,14 +257,14 @@
 				)
 		);
 
-	const removePrincipal = (principalType: 'user' | 'group', principalId: string) => {
+	const removePrincipal = (principalType: 'user' | 'group', principalId: string): void => {
 		let next = [...currentGrants()];
 		next = removePrincipalGrant(principalType, principalId, 'read', next);
 		next = removePrincipalGrant(principalType, principalId, 'write', next);
 		commitAccessGrants(next);
 	};
 
-	const togglePrincipalWrite = (principalType: 'user' | 'group', principalId: string) => {
+	const togglePrincipalWrite = (principalType: 'user' | 'group', principalId: string): void => {
 		let next = [...currentGrants()];
 		const hasWrite = hasPrincipalGrant(principalType, principalId, 'write');
 		if (hasWrite) {
@@ -282,11 +286,11 @@
 
 		const fetched = await Promise.all(
 			pendingIds.map(async (id) => {
-				const user = await getUserInfoById(localStorage.token, id).catch((error) => {
+				const user = await getUserInfoById(localStorage.token, id).catch((error: unknown) => {
 					console.error(error);
 					return null;
 				});
-				return { id, user };
+				return { id, user } as { id: string; user: User | null };
 			})
 		);
 
@@ -326,7 +330,7 @@
 
 		const fetched = await Promise.all(
 			pendingIds.map(async (id) => {
-				const group = await getGroupInfoById(localStorage.token, id).catch((error) => {
+				const group = await getGroupInfoById(localStorage.token, id).catch((error: unknown) => {
 					console.error(error);
 					return null;
 				});
@@ -349,12 +353,14 @@
 	$: if (readGroupIds.length > 0 || writeGroupIds.length > 0) {
 		void ensureGroupsByIds([...readGroupIds, ...writeGroupIds]);
 	}
-	$: readGroupIds = (accessGrants, getPrincipalIdsByPermission('group', 'read'));
-	$: writeGroupIds = (accessGrants, getPrincipalIdsByPermission('group', 'write'));
-	$: readUserIds =
-		(accessGrants, getPrincipalIdsByPermission('user', 'read').filter((id) => id !== '*'));
-	$: writeUserIds =
-		(accessGrants, getPrincipalIdsByPermission('user', 'write').filter((id) => id !== '*'));
+	$: readGroupIds = getPrincipalIdsByPermission('group', 'read', accessGrants);
+	$: writeGroupIds = getPrincipalIdsByPermission('group', 'write', accessGrants);
+	$: readUserIds = getPrincipalIdsByPermission('user', 'read', accessGrants).filter(
+		(id) => id !== '*'
+	);
+	$: writeUserIds = getPrincipalIdsByPermission('user', 'write', accessGrants).filter(
+		(id) => id !== '*'
+	);
 
 	$: selectedUserIds = Array.from(new Set([...readUserIds, ...writeUserIds]));
 
@@ -397,9 +403,8 @@
 
 	onMount(async () => {
 		console.log('AccessControl mounted', { accessGrants, accessControl });
-		const res = await getGroups(localStorage.token, true).catch((error) => {
-			console.error(error);
-			return [];
+		const res = await getGroups(localStorage.token, true).catch((error: any) => {
+			toast.error(`${error.detail ?? error}`);
 		});
 
 		console.log('getGroups res', res);

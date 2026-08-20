@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import { getContext, tick, onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -8,7 +8,7 @@
 
 	const i18n = getContext('i18n');
 
-	let selectedTab;
+	let selectedTab: 'leaderboard' | 'feedback' = 'leaderboard';
 	$: {
 		const pathParts = $page.url.pathname.split('/');
 		const tabFromPath = pathParts[pathParts.length - 1];
@@ -20,7 +20,7 @@
 		scrollToTab(selectedTab);
 	}
 
-	const scrollToTab = (tabId) => {
+	const scrollToTab = (tabId: 'leaderboard' | 'feedback' | string) => {
 		const tabElement = document.getElementById(tabId);
 		if (tabElement) {
 			tabElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
@@ -35,7 +35,7 @@
 		const containerElement = document.getElementById('users-tabs-container');
 
 		if (containerElement) {
-			containerElement.addEventListener('wheel', function (event) {
+			containerElement.addEventListener('wheel', function (event: WheelEvent) {
 				if (event.deltaY !== 0) {
 					// Adjust horizontal scroll position based on vertical scroll
 					containerElement.scrollLeft += event.deltaY;

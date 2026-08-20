@@ -3,22 +3,26 @@
 	import Checkbox from '$lib/components/common/Checkbox.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 
-	const i18n = getContext('i18n');
+	import type { Writable } from 'svelte/store';
+	import type { FunctionModel } from '$lib/types';
+	const i18n = getContext<Writable<{ t: (k: string, p?: Record<string, any>) => string }>>('i18n');
 
-	export let filters = [];
-	export let selectedFilterIds = [];
+	export let filters: FunctionModel[] = [];
+	export let selectedFilterIds: string[] = [];
 
-	let _filters = {};
+	let _filters: Record<string, FunctionModel & { selected: boolean }> = {};
 
 	onMount(() => {
-		_filters = filters.reduce((acc, filter) => {
-			acc[filter.id] = {
-				...filter,
-				selected: selectedFilterIds.includes(filter.id)
-			};
-
-			return acc;
-		}, {});
+		_filters = filters.reduce(
+			(acc, filter) => {
+				acc[filter.id] = {
+					...filter,
+					selected: selectedFilterIds.includes(filter.id!)
+				};
+				return acc;
+			},
+			{} as Record<string, FunctionModel & { selected: boolean }>
+		);
 	});
 </script>
 
@@ -43,8 +47,8 @@
 						</div>
 
 						<div class=" py-0.5 text-sm w-full capitalize font-medium">
-							<Tooltip content={_filters[filter].meta.description}>
-								{_filters[filter].name}
+							<Tooltip content={_filters[filter].meta?.description ?? ''}>
+								{_filters[filter].name ?? ''}
 							</Tooltip>
 						</div>
 					</div>

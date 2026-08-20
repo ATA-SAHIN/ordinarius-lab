@@ -15,7 +15,8 @@
 	export let saveHandler: Function;
 
 	const exportAllUserChats = async () => {
-		let blob = new Blob([JSON.stringify(await getAllUserChats(localStorage.token))], {
+		const chats = (await getAllUserChats(localStorage.token)) as any[];
+		let blob = new Blob([JSON.stringify(chats)], {
 			type: 'application/json'
 		});
 		saveAs(blob, `all-chats-export-${Date.now()}.json`);
@@ -28,7 +29,7 @@
 
 		const csv = [
 			headers.join(','),
-			...users.users.map((user) => {
+			...((users as any).users as any[]).map((user) => {
 				return headers
 					.map((header) => {
 						if (user[header] === null || user[header] === undefined) {
@@ -60,17 +61,21 @@
 				const file = e.target.files[0];
 				const reader = new FileReader();
 
-				reader.onload = async (e) => {
-					const res = await importConfig(localStorage.token, JSON.parse(e.target.result)).catch(
-						(error) => {
-							toast.error(`${error}`);
-						}
-					);
+				reader.onload = async (e: ProgressEvent<FileReader>) => {
+					const result = e.target?.result;
+					if (typeof result !== 'string') return;
+
+					const res = await importConfig(localStorage.token, JSON.parse(result)).catch((error) => {
+						toast.error(`${error}`);
+					});
 
 					if (res) {
 						toast.success($i18n.t('Config imported successfully'));
 					}
-					e.target.value = null;
+					const target = e.target as any;
+					if (target) {
+						target.value = null;
+					}
 				};
 
 				reader.readAsText(file);

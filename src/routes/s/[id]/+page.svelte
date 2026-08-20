@@ -6,6 +6,7 @@
 	import dayjs from 'dayjs';
 
 	import { settings, chatId, WEBUI_NAME, models, config } from '$lib/stores';
+	import type { ChatData, ChatHistory, ChatMessage, SessionUser } from '$lib/types';
 	import { convertMessagesToHistory, createMessagesList } from '$lib/utils';
 
 	import { getChatByShareId, cloneSharedChatById } from '$lib/apis/chats';
@@ -23,22 +24,21 @@
 	let loaded = false;
 
 	let autoScroll = true;
-	let processing = '';
 	let messagesContainerElement: HTMLDivElement;
 
 	// let chatId = $page.params.id;
 	let showModelSelector = false;
 	let selectedModels = [''];
 
-	let chat = null;
-	let user = null;
+	let chat: ChatData | null = null;
+	let user: SessionUser | null = null;
 
 	let title = '';
 	let files = [];
 
-	let messages = [];
-	let history = {
-		messages: {},
+	let messages: ChatMessage[] = [];
+	let history: ChatHistory = {
+		messages: {} as Record<string, ChatMessage>,
 		currentId: null
 	};
 
@@ -82,7 +82,7 @@
 		await models.set(
 			await getModels(
 				localStorage.token,
-				$config?.features?.enable_direct_connections && ($settings?.directConnections ?? null)
+				$config?.features?.enable_direct_connections ? ($settings?.directConnections ?? null) : null
 			)
 		);
 		await chatId.set($page.params.id);
@@ -92,7 +92,7 @@
 		});
 
 		if (chat) {
-			user = await getUserInfoById(localStorage.token, chat.user_id).catch((error) => {
+			user = await getUserInfoById(localStorage.token, chat.user_id ?? '').catch((error) => {
 				console.error(error);
 				return null;
 			});
@@ -115,8 +115,9 @@
 				autoScroll = true;
 				await tick();
 
-				if (messages.length > 0 && messages.at(-1)?.id && messages.at(-1)?.id in history.messages) {
-					history.messages[messages.at(-1)?.id].done = true;
+				const lastMessage = messages.at(-1);
+				if (lastMessage?.id && history.messages[lastMessage.id]) {
+					(history.messages[lastMessage.id] as any).done = true;
 				}
 				await tick();
 
@@ -170,7 +171,7 @@
 								class="text-gray-400"
 								datetime={new Date(chat?.chat?.timestamp || Date.now()).toISOString()}
 							>
-								{dayjs(chat.chat.timestamp).format('LLL')}
+								{dayjs(chat?.chat?.timestamp || Date.now()).format('LLL')}
 							</time>
 						</div>
 					</div>
@@ -180,18 +181,20 @@
 					<div class="w-full">
 						<Messages
 							className="h-full flex pt-4 pb-8 "
-							{user}
+							user={user ?? undefined}
 							chatId={$chatId}
 							readOnly={true}
 							{selectedModels}
-							{processing}
 							bind:history
-							bind:messages
 							bind:autoScroll
 							bottomPadding={files.length > 0}
+							prompt={''}
+							atSelectedModel={''}
 							sendMessage={() => {}}
 							continueResponse={() => {}}
 							regenerateResponse={() => {}}
+							mergeResponses={() => {}}
+							chatActionHandler={() => {}}
 						/>
 					</div>
 				</div>

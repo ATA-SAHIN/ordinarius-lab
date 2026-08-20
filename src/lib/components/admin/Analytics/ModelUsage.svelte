@@ -147,7 +147,8 @@
 									alt={model.name}
 									class="size-5 rounded-full object-cover shrink-0"
 									on:error={(e) => {
-										e.target.src = '/favicon.png';
+										const target = e.target as HTMLImageElement;
+										target.src = '/favicon.png';
 									}}
 								/>
 								<span class="font-medium text-gray-800 dark:text-gray-200">{model.name}</span>

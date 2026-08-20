@@ -9,6 +9,8 @@
 
 	import { onMount, getContext, tick } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { DropdownMenu } from 'bits-ui';
+	import { flyAndScale } from '$lib/utils/transitions';
 	const i18n = getContext('i18n');
 
 	import { WEBUI_NAME, config, mobile, models as _models, settings, user } from '$lib/stores';
@@ -71,6 +73,8 @@
 	let total = null;
 
 	let searchDebounceTimer;
+
+	let createNewMenuOpen = false;
 
 	$: if (loaded && page !== undefined && selectedTag !== undefined && viewOption !== undefined) {
 		getModelList();
@@ -264,7 +268,7 @@
 
 <svelte:head>
 	<title>
-		{$i18n.t('Models')} • {$WEBUI_NAME}
+		{$i18n.t('OpenClaw')} • {$WEBUI_NAME}
 	</title>
 </svelte:head>
 
@@ -338,7 +342,7 @@
 		<div class="flex justify-between items-center">
 			<div class="flex items-center md:self-center text-xl font-medium px-0.5 gap-2 shrink-0">
 				<div>
-					{$i18n.t('Models')}
+					{$i18n.t('OpenClaw')}
 				</div>
 
 				<div class="text-lg font-medium text-gray-500 dark:text-gray-500">
@@ -372,14 +376,43 @@
 						</div>
 					</button>
 				{/if}
-				<a
-					class=" px-2 py-1.5 rounded-xl bg-black text-white dark:bg-white dark:text-black transition font-medium text-sm flex items-center"
-					href="/workspace/models/create"
-				>
-					<Plus className="size-3" strokeWidth="2.5" />
-
-					<div class=" hidden md:block md:ml-1 text-xs">{$i18n.t('New Model')}</div>
-				</a>
+				<DropdownMenu.Root bind:open={createNewMenuOpen} closeFocus={false}>
+					<DropdownMenu.Trigger
+						class="px-2 py-1.5 rounded-xl bg-black text-white dark:bg-white dark:text-black transition font-medium text-sm flex items-center outline-hidden focus-visible:ring-2 focus-visible:ring-gray-400 dark:focus-visible:ring-gray-500"
+						aria-label={$i18n.t('Create new OpenClaw resource')}
+					>
+						<Plus className="size-3" strokeWidth="2.5" />
+						<div class="hidden md:block md:ml-1 text-xs">{$i18n.t('Create New')}</div>
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content
+						class="min-w-[12rem] z-50 rounded-2xl p-1 border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-850 dark:text-white shadow-lg"
+						side="bottom"
+						align="end"
+						sideOffset={4}
+						transition={flyAndScale}
+					>
+						<DropdownMenu.Item
+							class="select-none flex gap-2 items-center px-3 py-1.5 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl outline-hidden"
+							on:click={() => {
+								createNewMenuOpen = false;
+								goto('/workspace/models/create');
+							}}
+						>
+							<Plus className="size-3.5 shrink-0" strokeWidth="2.5" />
+							<span>{$i18n.t('New OpenClaw Profile')}</span>
+						</DropdownMenu.Item>
+						<DropdownMenu.Item
+							class="select-none flex gap-2 items-center px-3 py-1.5 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl outline-hidden"
+							on:click={() => {
+								createNewMenuOpen = false;
+								goto('/workspace/models/oseditor');
+							}}
+						>
+							<Plus className="size-3.5 shrink-0" strokeWidth="2.5" />
+							<span>{$i18n.t('New OpenClaw Fork')}</span>
+						</DropdownMenu.Item>
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
 			</div>
 		</div>
 	</div>
@@ -395,8 +428,8 @@
 				<input
 					class=" w-full text-sm py-1 rounded-r-xl outline-hidden bg-transparent"
 					bind:value={query}
-					aria-label={$i18n.t('Search Models')}
-					placeholder={$i18n.t('Search Models')}
+					aria-label={$i18n.t('Search OpenClaw')}
+					placeholder={$i18n.t('Search OpenClaw')}
 					maxlength="500"
 					on:input={() => {
 						clearTimeout(searchDebounceTimer);
@@ -667,7 +700,7 @@
 				<div class=" w-full h-full flex flex-col justify-center items-center my-16 mb-24">
 					<div class="max-w-md text-center">
 						<div class=" text-3xl mb-3">😕</div>
-						<div class=" text-lg font-medium mb-1">{$i18n.t('No models found')}</div>
+						<div class=" text-lg font-medium mb-1">{$i18n.t('No OpenClaw profiles found')}</div>
 						<div class=" text-gray-500 text-center text-xs">
 							{$i18n.t('Try adjusting your search or filter to find what you are looking for.')}
 						</div>

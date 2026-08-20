@@ -2,6 +2,7 @@
 	import { toast } from 'svelte-sonner';
 	import { createEventDispatcher } from 'svelte';
 	import { onMount, getContext } from 'svelte';
+	import type { Writable } from 'svelte/store';
 	import { addUser } from '$lib/apis/auths';
 
 	import Modal from '../../common/Modal.svelte';
@@ -30,22 +31,22 @@
 	import Valves from '$lib/components/common/Valves.svelte';
 	import XMark from '$lib/components/icons/XMark.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<{ t: (k: string) => string }>>('i18n');
 	const dispatch = createEventDispatcher();
 
-	export let show = false;
+	export let show: boolean = false;
 
-	export let type = 'tool';
-	export let id = null;
-	export let userValves = false;
+	export let type: 'tool' | 'function' | string = 'tool';
+	export let id: string | null = null;
+	export let userValves: boolean = false;
 
-	let saving = false;
-	let loading = false;
+	let saving: boolean = false;
+	let loading: boolean = false;
 
-	let valvesSpec = null;
-	let valves = {};
+	let valvesSpec: any | null = null;
+	let valves: Record<string, any> = {};
 
-	const submitHandler = async () => {
+	const submitHandler = async (): Promise<void> => {
 		saving = true;
 
 		if (valvesSpec) {
@@ -67,11 +68,11 @@
 
 			if (userValves) {
 				if (type === 'tool') {
-					res = await updateToolUserValvesById(localStorage.token, id, valves).catch((error) => {
+					res = await updateToolUserValvesById(localStorage.token, id!, valves).catch((error) => {
 						toast.error(`${error}`);
 					});
 				} else if (type === 'function') {
-					res = await updateFunctionUserValvesById(localStorage.token, id, valves).catch(
+					res = await updateFunctionUserValvesById(localStorage.token, id!, valves).catch(
 						(error) => {
 							toast.error(`${error}`);
 						}
@@ -79,11 +80,11 @@
 				}
 			} else {
 				if (type === 'tool') {
-					res = await updateToolValvesById(localStorage.token, id, valves).catch((error) => {
+					res = await updateToolValvesById(localStorage.token, id!, valves).catch((error) => {
 						toast.error(`${error}`);
 					});
 				} else if (type === 'function') {
-					res = await updateFunctionValvesById(localStorage.token, id, valves).catch((error) => {
+					res = await updateFunctionValvesById(localStorage.token, id!, valves).catch((error) => {
 						toast.error(`${error}`);
 					});
 				}
@@ -98,7 +99,7 @@
 		saving = false;
 	};
 
-	const initHandler = async () => {
+	const initHandler = async (): Promise<void> => {
 		loading = true;
 		valves = {};
 		valvesSpec = null;
@@ -106,19 +107,19 @@
 		try {
 			if (userValves) {
 				if (type === 'tool') {
-					valves = await getToolUserValvesById(localStorage.token, id);
-					valvesSpec = await getToolUserValvesSpecById(localStorage.token, id);
+					valves = await getToolUserValvesById(localStorage.token, id!);
+					valvesSpec = await getToolUserValvesSpecById(localStorage.token, id!);
 				} else if (type === 'function') {
-					valves = await getFunctionUserValvesById(localStorage.token, id);
-					valvesSpec = await getFunctionUserValvesSpecById(localStorage.token, id);
+					valves = await getFunctionUserValvesById(localStorage.token, id!);
+					valvesSpec = await getFunctionUserValvesSpecById(localStorage.token, id!);
 				}
 			} else {
 				if (type === 'tool') {
-					valves = await getToolValvesById(localStorage.token, id);
-					valvesSpec = await getToolValvesSpecById(localStorage.token, id);
+					valves = await getToolValvesById(localStorage.token, id!);
+					valvesSpec = await getToolValvesSpecById(localStorage.token, id!);
 				} else if (type === 'function') {
-					valves = await getFunctionValvesById(localStorage.token, id);
-					valvesSpec = await getFunctionValvesSpecById(localStorage.token, id);
+					valves = await getFunctionValvesById(localStorage.token, id!);
+					valvesSpec = await getFunctionValvesSpecById(localStorage.token, id!);
 				}
 			}
 
@@ -206,23 +207,29 @@
 </Modal>
 
 <style>
+	/* svelte-ignore css-unused-selector */
 	input::-webkit-outer-spin-button,
+	/* svelte-ignore css-unused-selector */
 	input::-webkit-inner-spin-button {
 		/* display: none; <- Crashes Chrome on hover */
 		-webkit-appearance: none;
 		margin: 0; /* <-- Apparently some margin are still there even though it's hidden */
 	}
 
+	/* svelte-ignore css-unused-selector */
 	.tabs::-webkit-scrollbar {
 		display: none; /* for Chrome, Safari and Opera */
 	}
 
+	/* svelte-ignore css-unused-selector */
 	.tabs {
 		-ms-overflow-style: none; /* IE and Edge */
 		scrollbar-width: none; /* Firefox */
 	}
 
+	/* svelte-ignore css-unused-selector */
 	input[type='number'] {
 		-moz-appearance: textfield; /* Firefox */
+		appearance: textfield;
 	}
 </style>

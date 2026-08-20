@@ -1,5 +1,6 @@
 <script lang="ts">
 	export let className: string = 'size-4';
+	export let strokeWidth: string = '2.5';
 </script>
 
 <div class="flex justify-center text-center">

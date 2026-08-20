@@ -18,7 +18,7 @@
 	export let cancelLabel = $i18n.t('Cancel');
 	export let confirmLabel = $i18n.t('Confirm');
 
-	export let onConfirm = () => {};
+	export let onConfirm: () => Promise<void> | void = () => {};
 
 	export let input = false;
 	export let inputPlaceholder = '';
@@ -31,7 +31,7 @@
 		init();
 	}
 
-	let modalElement = null;
+	let modalElement: HTMLElement | null = null;
 	let mounted = false;
 
 	let focusTrap: FocusTrap.FocusTrap | null = null;
@@ -89,8 +89,8 @@
 		if (focusTrap) {
 			focusTrap.deactivate();
 		}
-		if (modalElement) {
-			document.body.removeChild(modalElement);
+		if (modalElement && modalElement.parentNode) {
+			modalElement.parentNode.removeChild(modalElement);
 		}
 	});
 </script>
@@ -101,6 +101,8 @@
 	<div
 		bind:this={modalElement}
 		class=" fixed top-0 right-0 left-0 bottom-0 bg-black/60 w-full h-screen max-h-[100dvh] flex justify-center z-99999999 overflow-hidden overscroll-contain"
+		role="dialog"
+		aria-labelledby="confirm-dialog-title"
 		in:fade={{ duration: 10 }}
 		on:mousedown={() => {
 			show = false;
@@ -114,7 +116,7 @@
 			}}
 		>
 			<div class="px-[1.75rem] py-6 flex flex-col">
-				<div class=" text-lg font-medium dark:text-gray-200 mb-2.5">
+				<div id="confirm-dialog-title" class=" text-lg font-medium dark:text-gray-200 mb-2.5">
 					{#if title !== ''}
 						{title}
 					{:else}

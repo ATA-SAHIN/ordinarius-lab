@@ -3,7 +3,7 @@ import { browser, dev } from '$app/environment';
 
 export const APP_NAME = 'Open WebUI';
 
-export const WEBUI_HOSTNAME = browser ? (dev ? `${location.hostname}:8080` : ``) : '';
+export const WEBUI_HOSTNAME = browser ? (dev ? `localhost:8080` : ``) : '';
 export const WEBUI_BASE_URL = browser ? (dev ? `http://${WEBUI_HOSTNAME}` : ``) : ``;
 export const WEBUI_API_BASE_URL = `${WEBUI_BASE_URL}/api/v1`;
 
@@ -109,6 +109,31 @@ export const DEFAULT_CAPABILITIES = {
 };
 
 export const PASTED_TEXT_CHARACTER_LIMIT = 1000;
+
+const _pub = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {};
+
+/** GitHub org/repo avatar for upstream OpenClaw template (override per deploy via PUBLIC_OPENCLAW_UPSTREAM_REPO_AVATAR_URL). */
+export const OPENCLAW_UPSTREAM_REPO_AVATAR_URL =
+	(typeof _pub.PUBLIC_OPENCLAW_UPSTREAM_REPO_AVATAR_URL === 'string' &&
+		_pub.PUBLIC_OPENCLAW_UPSTREAM_REPO_AVATAR_URL) ||
+	'https://github.com/openclaw.png';
+
+/** Default HTTPS clone URL for the upstream OpenClaw repo. */
+export const OPENCLAW_UPSTREAM_CLONE_URL =
+	(typeof _pub.PUBLIC_OPENCLAW_UPSTREAM_CLONE_URL === 'string' &&
+		_pub.PUBLIC_OPENCLAW_UPSTREAM_CLONE_URL) ||
+	'https://github.com/openclaw/openclaw.git';
+
+/** Default branch name used when pinning / cloning upstream. */
+export const OPENCLAW_UPSTREAM_DEFAULT_BRANCH =
+	(typeof _pub.PUBLIC_OPENCLAW_UPSTREAM_DEFAULT_BRANCH === 'string' &&
+		_pub.PUBLIC_OPENCLAW_UPSTREAM_DEFAULT_BRANCH) ||
+	'main';
+
+/** Upstream GitHub org (display / grouping). */
+export const OPENCLAW_UPSTREAM_ORG =
+	(typeof _pub.PUBLIC_OPENCLAW_UPSTREAM_ORG === 'string' && _pub.PUBLIC_OPENCLAW_UPSTREAM_ORG) ||
+	'openclaw';
 
 // Source: https://kit.svelte.dev/docs/modules#$env-static-public
 // This feature, akin to $env/static/private, exclusively incorporates environment variables

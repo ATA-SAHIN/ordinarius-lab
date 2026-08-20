@@ -1,26 +1,30 @@
 <script lang="ts">
+	import { getContext } from 'svelte';
+	import type { Writable } from 'svelte/store';
+	import type { Tool } from '$lib/types';
 	import Checkbox from '$lib/components/common/Checkbox.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
-	import { getContext, onMount } from 'svelte';
 
-	export let tools = [];
+	const i18n = getContext<Writable<{ t: (k: string) => string }>>('i18n');
 
-	let _tools = {};
+	export let tools: Tool[] = [];
+	export let selectedToolIds: string[] = [];
 
-	export let selectedToolIds = [];
+	let _tools: Record<string, Tool & { selected: boolean }> = {};
 
-	const i18n = getContext('i18n');
-
-	onMount(() => {
-		_tools = tools.reduce((acc, tool) => {
-			acc[tool.id] = {
-				...tool,
-				selected: selectedToolIds.includes(tool.id)
-			};
-
-			return acc;
-		}, {});
-	});
+	/** Keep in sync with global `tools` store + selection (same as WebUI when new toolkits are added). */
+	$: {
+		_tools = (tools ?? []).reduce(
+			(acc, tool) => {
+				acc[tool.id] = {
+					...tool,
+					selected: selectedToolIds.includes(tool.id)
+				};
+				return acc;
+			},
+			{} as Record<string, Tool & { selected: boolean }>
+		);
+	}
 </script>
 
 <div>
@@ -29,9 +33,9 @@
 	</div>
 
 	<div class="flex flex-col mb-1">
-		{#if tools.length > 0}
+		{#if Object.keys(_tools).length > 0}
 			<div class=" flex items-center flex-wrap">
-				{#each Object.keys(_tools) as tool, toolIdx}
+				{#each Object.keys(_tools) as tool}
 					<div class=" flex items-center gap-2 mr-3">
 						<div class="self-center flex items-center">
 							<Checkbox

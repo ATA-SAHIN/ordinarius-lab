@@ -1,5 +1,5 @@
-<script>
-	import Skills from '$lib/components/workspace/Skills.svelte';
+<script lang="ts">
+	import OpenClawSkillsEditorPage from '$lib/components/workspace/openclaw/OpenClawSkillsEditorPage.svelte';
 </script>
 
-<Skills />
+<OpenClawSkillsEditorPage />

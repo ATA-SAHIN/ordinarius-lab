@@ -7,24 +7,24 @@
 
 	import { DEFAULT_PERMISSIONS } from '$lib/constants/permissions';
 
-	export let permissions = {};
-	export let defaultPermissions = {};
+	export let permissions: Record<string, any> = {};
+	export let defaultPermissions: Record<string, any> = {};
 
 	// Reactive statement to ensure all fields are present in `permissions`
 	$: {
 		permissions = fillMissingProperties(permissions, DEFAULT_PERMISSIONS);
 	}
 
-	function fillMissingProperties(obj: any, defaults: any) {
+	function fillMissingProperties(obj: Record<string, any>, defaults: Record<string, any>) {
 		return {
 			...defaults,
 			...obj,
-			workspace: { ...defaults.workspace, ...obj.workspace },
-			sharing: { ...defaults.sharing, ...obj.sharing },
-			access_grants: { ...defaults.access_grants, ...obj.access_grants },
-			chat: { ...defaults.chat, ...obj.chat },
-			features: { ...defaults.features, ...obj.features },
-			settings: { ...defaults.settings, ...obj.settings }
+			workspace: { ...defaults.workspace, ...(obj.workspace ?? {}) },
+			sharing: { ...defaults.sharing, ...(obj.sharing ?? {}) },
+			access_grants: { ...defaults.access_grants, ...(obj.access_grants ?? {}) },
+			chat: { ...defaults.chat, ...(obj.chat ?? {}) },
+			features: { ...defaults.features, ...(obj.features ?? {}) },
+			settings: { ...defaults.settings, ...(obj.settings ?? {}) }
 		};
 	}
 
@@ -45,7 +45,7 @@
 		<div class="flex flex-col w-full">
 			<div class="flex w-full justify-between my-1">
 				<div class=" self-center text-xs font-medium">
-					{$i18n.t('Models Access')}
+					{$i18n.t('OpenClaw Access')}
 				</div>
 				<Switch bind:state={permissions.workspace.models} />
 			</div>
@@ -54,13 +54,13 @@
 				<div class="ml-2 flex flex-col gap-2 pt-0.5 pb-1">
 					<div class="flex w-full justify-between">
 						<div class="self-center text-xs">
-							{$i18n.t('Import Models')}
+							{$i18n.t('Import OpenClaw profiles')}
 						</div>
 						<Switch bind:state={permissions.workspace.models_import} />
 					</div>
 					<div class="flex w-full justify-between">
 						<div class="self-center text-xs">
-							{$i18n.t('Export Models')}
+							{$i18n.t('Export OpenClaw profiles')}
 						</div>
 						<Switch bind:state={permissions.workspace.models_export} />
 					</div>

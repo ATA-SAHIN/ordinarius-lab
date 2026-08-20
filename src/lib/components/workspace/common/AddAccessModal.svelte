@@ -1,14 +1,15 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	const i18n = getContext('i18n');
+	import type { Writable } from 'svelte/store';
+	const i18n = getContext<Writable<{ t: (k: string) => string }>>('i18n');
 
 	import Modal from '$lib/components/common/Modal.svelte';
 	import XMark from '$lib/components/icons/XMark.svelte';
 	import MemberSelector from '$lib/components/workspace/common/MemberSelector.svelte';
 
-	export let show = false;
-	export let shareUsers = true;
-	export let onAdd = (payload: { userIds: string[]; groupIds: string[] }) => {};
+	export let show: boolean = false;
+	export let shareUsers: boolean = true;
+	export let onAdd: (payload: { userIds: string[]; groupIds: string[] }) => void = (payload) => {};
 
 	let userIds: string[] = [];
 	let groupIds: string[] = [];

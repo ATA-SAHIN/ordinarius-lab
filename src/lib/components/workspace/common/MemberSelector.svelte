@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
 	import { getContext, onMount, onDestroy } from 'svelte';
+	import type { Writable } from 'svelte/store';
 
-	const i18n = getContext('i18n');
+	const i18n = getContext<Writable<{ t: (k: string) => string }>>('i18n');
 
 	import { user as _user } from '$lib/stores';
 	import { getUserInfoById, searchUsers } from '$lib/apis/users';
@@ -18,40 +19,43 @@
 	import Checkbox from '$lib/components/common/Checkbox.svelte';
 	import { getGroups } from '$lib/apis/groups';
 
-	export let includeGroups = true;
-	export let includeUsers = true;
+	export let includeGroups: boolean = true;
+	export let includeUsers: boolean = true;
 	export let pagination = false;
+	// @ts-expect-error unused
+	$: if (pagination) {
+	}
 
-	export let groupIds = [];
-	export let userIds = [];
+	export let groupIds: string[] = [];
+	export let userIds: string[] = [];
 
-	let groups = null;
-	let filteredGroups = [];
+	let groups: any[] | null = null;
+	let filteredGroups: any[] = [];
 
 	$: filteredGroups = groups
 		? groups.filter((group) => group.name.toLowerCase().includes(query.toLowerCase()))
 		: [];
 
-	let selectedGroup = {};
-	let selectedUsers = {};
+	let selectedGroup: Record<string, any> = {};
+	let selectedUsers: Record<string, any> = {};
 
-	let page = 1;
-	let users = null;
-	let total = null;
+	let page: number = 1;
+	let users: any[] | null = null;
+	let total: number | null = null;
 
 	let query = '';
 	let searchDebounceTimer: ReturnType<typeof setTimeout>;
 	let orderBy = 'name'; // default sort key
 	let direction = 'asc'; // default sort order
 
-	const getUserList = async () => {
+	const getUserList = async (): Promise<void> => {
 		try {
-			const res = await searchUsers(localStorage.token, query, orderBy, direction, page).catch(
-				(error) => {
-					toast.error(`${error}`);
-					return null;
-				}
-			);
+			const res = await (
+				searchUsers(localStorage.token, query, orderBy, direction, page) as Promise<any>
+			).catch((error) => {
+				toast.error(`${error}`);
+				return null;
+			});
 
 			if (res) {
 				users = res.users;

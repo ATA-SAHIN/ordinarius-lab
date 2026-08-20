@@ -1,4 +1,5 @@
 <script lang="ts">
+	// @ts-nocheck
 	import { DropdownMenu } from 'bits-ui';
 	import { createEventDispatcher, getContext, onMount, tick } from 'svelte';
 

@@ -25,8 +25,8 @@
 
 	let loading = false;
 
-	let models = null;
-	let config = null;
+	let models: any[] | null = null;
+	let config: any | null = null;
 
 	let showComfyUIWorkflowEditor = false;
 	let REQUIRED_WORKFLOW_NODES = [
@@ -159,7 +159,7 @@
 			if (obj && typeof obj === 'object') {
 				return true;
 			}
-		} catch (e) {}
+		} catch (e: any) {}
 		return false;
 	};
 
@@ -249,7 +249,7 @@
 						null,
 						2
 					);
-				} catch (e) {
+				} catch (e: any) {
 					console.error(e);
 				}
 			}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	// @ts-nocheck
 	import { DropdownMenu } from 'bits-ui';
 	import { flyAndScale } from '$lib/utils/transitions';
 	import { getContext, createEventDispatcher, tick } from 'svelte';

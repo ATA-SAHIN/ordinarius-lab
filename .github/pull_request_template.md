@@ -18,6 +18,7 @@ This is to ensure large feature PRs are discussed with the community first, befo
 - [ ] **Documentation:** Add docs in [Open WebUI Docs Repository](https://github.com/open-webui/docs). Document user-facing behavior, environment variables, public APIs/interfaces, or deployment steps.
 - [ ] **Dependencies:** Are there any new or upgraded dependencies? If so, explain why, update the changelog/docs, and include any compatibility notes. Actually run the code/function that uses updated library to ensure it doesn't crash.
 - [ ] **Testing:** Perform manual tests to **verify the implemented fix/feature works as intended AND does not break any other functionality**. Include reproducible steps to demonstrate the issue before the fix. Test edge cases (URL encoding, HTML entities, types). Take this as an opportunity to **make screenshots of the feature/fix and include them in the PR description**.
+- [ ] **Fork product guarantee (if touching fork factory / `openclaw_fork`):** Confirm `docs/FORK_PRODUCT_GUARANTEE.md` + `docs/FORK_FACTORY_UI_DISCOVERY.md` stay accurate; run `python3 scripts/build_fork_json_catalog.py` when `data/fork_inventory/` SSOT lists change; apply DB migration for `fork_*` tables when schema changes.
 - [ ] **Agentic AI Code:** Confirm this Pull Request is **not written by any AI Agent** or has at least **gone through additional human review AND manual testing**. If any AI Agent is the co-author of this PR, it may lead to immediate closure of the PR.
 - [ ] **Code review:** Have you performed a self-review of your code, addressing any coding standard issues and ensuring adherence to the project's coding standards?
 - [ ] **Design & Architecture:** Prefer smart defaults over adding new settings; use local state for ephemeral UI logic. Open a Discussion for major architectural or UX changes.
@@ -81,6 +82,15 @@ This is to ensure large feature PRs are discussed with the community first, befo
 ### Screenshots or Videos
 
 - [Attach any relevant screenshots or videos demonstrating the changes]
+
+### Fork fabrikası (yalnızca Katman 1–17 / ForkEditor ile ilgili PR’lar)
+
+- [ ] [FORK_LAYER_DOUBLE_PASS.md](docs/FORK_LAYER_DOUBLE_PASS.md): **1. tur** (CI + DoD) ve **2. tur** (insan checklist) tamamlandı
+- [ ] [FORK_PRODUCTION_HARDENING.md](docs/FORK_PRODUCTION_HARDENING.md) / [FORK_LAYER_GAP_MATRIX.md](docs/FORK_LAYER_GAP_MATRIX.md) / [FORK_ENV_MATRIX.md](docs/FORK_ENV_MATRIX.md) güncellendi (Pass A veya Pass B satırı)
+- [ ] [FORK_PRODUCTION_UI_COMPLETE.md](docs/FORK_PRODUCTION_UI_COMPLETE.md) ile API–UI–test eşlemesi tutarlı
+- [ ] `uv run pytest backend/open_webui/test/apps/webui/routers/test_openclaw_fork.py` (veya journey alt kümesi) yeşil
+- [ ] Etkilenen katman: Katman … (numara)
+- [ ] Bilinçli yapılmayan madde yok veya açıklamada yazılı
 
 ### Contributor License Agreement
 

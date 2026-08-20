@@ -30,7 +30,6 @@
 	export let show = false;
 
 	export let title = 'Chats';
-	export let emptyPlaceholder = '';
 	export let shareUrl = false;
 	export let showUserInfo = false;
 	export let showSearch = true;
@@ -41,11 +40,11 @@
 	export let orderBy = 'updated_at';
 	export let direction = 'desc'; // 'asc' or 'desc'
 
-	export let chatList = null;
+	export let chatList: any[] | null = null;
 	export let allChatsLoaded = false;
 	export let chatListLoading = false;
 
-	let selectedChatId = null;
+	let selectedChatId: string | null = null;
 	let selectedIdx = 0;
 	let showDeleteConfirmDialog = false;
 
@@ -55,7 +54,7 @@
 	export let unarchiveHandler: null | Function = null;
 	export let unshareHandler: null | Function = null;
 
-	const setSortKey = (key) => {
+	const setSortKey = (key: string) => {
 		if (orderBy === key) {
 			direction = direction === 'asc' ? 'desc' : 'asc';
 		} else {
@@ -64,7 +63,7 @@
 		}
 	};
 
-	const deleteHandler = async (chatId) => {
+	const deleteHandler = async (chatId: string) => {
 		const res = await deleteChatById(localStorage.token, chatId).catch((error) => {
 			toast.error(`${error}`);
 		});
@@ -89,6 +88,7 @@
 			<div class=" text-lg font-medium self-center">{title}</div>
 			<button
 				class="self-center"
+				aria-label="Close"
 				on:click={() => {
 					show = false;
 				}}
@@ -330,7 +330,7 @@
 																toast.success($i18n.t('Share link copied to clipboard.'));
 															}}
 														>
-															<Clipboard class="size-4" strokeWidth="1.5" />
+															<Clipboard className="size-4" strokeWidth="1.5" />
 														</button>
 													</Tooltip>
 												{/if}

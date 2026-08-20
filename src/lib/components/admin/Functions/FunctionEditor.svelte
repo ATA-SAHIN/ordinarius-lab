@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import { getContext, onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
 
@@ -10,18 +10,18 @@
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import ChevronLeft from '$lib/components/icons/ChevronLeft.svelte';
 
-	let formElement = null;
+	let formElement: HTMLFormElement | null = null;
 	let loading = false;
 	let showConfirm = false;
 
-	export let onSave = () => {};
+	export let onSave: (data: any) => void = () => {};
 
 	export let edit = false;
 	export let clone = false;
 
 	export let id = '';
 	export let name = '';
-	export let meta = {
+	export let meta: any = {
 		description: ''
 	};
 	export let content = '';
@@ -39,7 +39,7 @@
 		id = name.replace(/\s+/g, '_').toLowerCase();
 	}
 
-	let codeEditor;
+	let codeEditor: any;
 	let boilerplate = `"""
 title: Example Filter
 author: open-webui

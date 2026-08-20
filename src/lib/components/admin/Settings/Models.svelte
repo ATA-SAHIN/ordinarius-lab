@@ -55,13 +55,13 @@
 	let importFiles;
 	let modelsImportInputElement: HTMLInputElement;
 
-	let models = null;
+	let models: any[] | null = null;
 
-	let workspaceModels = null;
-	let baseModels = null;
+	let workspaceModels: any[] | null = null;
+	let baseModels: any[] | null = null;
 
-	let filteredModels = [];
-	let selectedModelId = null;
+	let filteredModels: any[] = [];
+	let selectedModelId: string | null = null;
 
 	let showConfigModal = false;
 	let showManageModal = false;
@@ -71,8 +71,8 @@
 	const perPage = 30;
 	let currentPage = 1;
 
-	const isPublicModel = (model) => {
-		return (model?.access_grants ?? []).some(
+	const isPublicModel = (model: any) => {
+		return ((model?.access_grants as any[]) ?? []).some(
 			(g) => g.principal_type === 'user' && g.principal_id === '*' && g.permission === 'read'
 		);
 	};
@@ -157,8 +157,8 @@
 		workspaceModels = await getBaseModels(localStorage.token);
 		baseModels = await getModels(localStorage.token, null, true);
 
-		models = baseModels.map((m) => {
-			const workspaceModel = workspaceModels.find((wm) => wm.id === m.id);
+		models = (baseModels as any[]).map((m: any) => {
+			const workspaceModel = (workspaceModels as any[]).find((wm: any) => wm.id === m.id);
 
 			if (workspaceModel) {
 				return {
@@ -177,7 +177,7 @@
 		});
 	};
 
-	const upsertModelHandler = async (model, showToast = true) => {
+	const upsertModelHandler = async (model: any, showToast = true) => {
 		model.base_model_id = null;
 
 		if (workspaceModels.find((m) => m.id === model.id)) {
@@ -290,8 +290,8 @@
 		saveAs(blob, `${model.id}-${Date.now()}.json`);
 	};
 
-	const pinModelHandler = async (modelId) => {
-		let pinnedModels = $settings?.pinnedModels ?? [];
+	const pinModelHandler = async (modelId: string) => {
+		let pinnedModels = ($settings?.pinnedModels as string[]) ?? [];
 
 		if (pinnedModels.includes(modelId)) {
 			pinnedModels = pinnedModels.filter((id) => id !== modelId);
@@ -311,13 +311,13 @@
 			selectedModelId = id;
 		}
 
-		const onKeyDown = (event) => {
+		const onKeyDown = (event: KeyboardEvent) => {
 			if (event.key === 'Shift') {
 				shiftKey = true;
 			}
 		};
 
-		const onKeyUp = (event) => {
+		const onKeyUp = (event: KeyboardEvent) => {
 			if (event.key === 'Shift') {
 				shiftKey = false;
 			}
@@ -584,7 +584,7 @@
 								>
 									<Tooltip
 										content={marked.parse(
-											!!model?.meta?.description
+											model?.meta?.description
 												? model?.meta?.description
 												: model?.ollama?.digest
 													? `${model?.ollama?.digest} **(${model?.ollama?.modified_at})**`
@@ -620,7 +620,7 @@
 										class=" text-xs overflow-hidden text-ellipsis line-clamp-1 flex items-center gap-1 text-gray-500"
 									>
 										<span class=" line-clamp-1">
-											{!!model?.meta?.description
+											{model?.meta?.description
 												? model?.meta?.description
 												: model?.ollama?.digest
 													? `${model.id} (${model?.ollama?.digest})`

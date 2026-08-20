@@ -37,20 +37,19 @@
 
 	const i18n = getContext('i18n');
 
-	export let history;
-	export let models = [];
+	export let history: any;
+	export let models: Array<any> = [];
+	export let chatId: string | null = null;
 
-	export let chatId = null;
-
-	export let chatFiles = [];
-	export let params = {};
+	export let chatFiles: any[] = [];
+	export let params: any = {};
 
 	export let eventTarget: EventTarget;
 	export let submitPrompt: Function;
 	export let stopResponse: Function;
 	export let showMessage: Function;
-	export let files;
-	export let modelId;
+	export let files: any[] = [];
+	export let modelId: string | null = null;
 
 	export let codeInterpreterEnabled = false;
 
@@ -149,7 +148,7 @@
 			let size = Math.floor(
 				(parseInt(localStorage?.chatControlsSize) / container.clientWidth) * 100
 			);
-			pane.resize(size);
+			if (pane) pane.resize(size);
 		} else {
 			pane.resize(minSize);
 		}
@@ -284,7 +283,7 @@
 				{:else if $showEmbeds}
 					<Embeds />
 				{:else if $showArtifacts}
-					<Artifacts {history} />
+					<Artifacts {history} on:close={() => showControls.set(false)} />
 				{:else}
 					<!-- Controls + Files tabs -->
 					<div class="flex flex-col h-full min-h-0">
@@ -380,7 +379,7 @@
 		>
 			<div
 				class="absolute -left-1.5 -right-1.5 -top-0 -bottom-0 z-20 cursor-col-resize bg-transparent"
-			/>
+			></div>
 		</PaneResizer>
 	{/if}
 
@@ -430,7 +429,7 @@
 					{:else if $showEmbeds}
 						<Embeds overlay={dragged} />
 					{:else if $showArtifacts}
-						<Artifacts {history} overlay={dragged} />
+						<Artifacts {history} overlay={dragged} on:close={() => showControls.set(false)} />
 					{:else}
 						<!-- Controls + Files tabs -->
 						<div class="flex flex-col h-full min-h-0">

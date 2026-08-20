@@ -34,18 +34,18 @@
 
 	// External
 	let OLLAMA_BASE_URLS = [''];
-	let OLLAMA_API_CONFIGS = {};
+	let OLLAMA_API_CONFIGS: Record<number | string, any> = {};
 
 	let OPENAI_API_KEYS = [''];
 	let OPENAI_API_BASE_URLS = [''];
-	let OPENAI_API_CONFIGS = {};
+	let OPENAI_API_CONFIGS: Record<number | string, any> = {};
 
 	let ENABLE_OPENAI_API: null | boolean = null;
 	let ENABLE_OLLAMA_API: null | boolean = null;
 
-	let connectionsConfig = null;
+	let connectionsConfig: any | null = null;
 
-	let pipelineUrls = {};
+	let pipelineUrls: Record<string, boolean> = {};
 	let showAddOpenAIConnectionModal = false;
 	let showAddOllamaConnectionModal = false;
 
@@ -153,15 +153,15 @@
 				})()
 			]);
 
-			ENABLE_OPENAI_API = openaiConfig.ENABLE_OPENAI_API;
-			ENABLE_OLLAMA_API = ollamaConfig.ENABLE_OLLAMA_API;
+			ENABLE_OPENAI_API = (openaiConfig as any).ENABLE_OPENAI_API;
+			ENABLE_OLLAMA_API = (ollamaConfig as any).ENABLE_OLLAMA_API;
 
-			OPENAI_API_BASE_URLS = openaiConfig.OPENAI_API_BASE_URLS;
-			OPENAI_API_KEYS = openaiConfig.OPENAI_API_KEYS;
-			OPENAI_API_CONFIGS = openaiConfig.OPENAI_API_CONFIGS;
+			OPENAI_API_BASE_URLS = (openaiConfig as any).OPENAI_API_BASE_URLS;
+			OPENAI_API_KEYS = (openaiConfig as any).OPENAI_API_KEYS;
+			OPENAI_API_CONFIGS = (openaiConfig as any).OPENAI_API_CONFIGS;
 
-			OLLAMA_BASE_URLS = ollamaConfig.OLLAMA_BASE_URLS;
-			OLLAMA_API_CONFIGS = ollamaConfig.OLLAMA_API_CONFIGS;
+			OLLAMA_BASE_URLS = (ollamaConfig as any).OLLAMA_BASE_URLS;
+			OLLAMA_API_CONFIGS = (ollamaConfig as any).OLLAMA_API_CONFIGS;
 
 			if (ENABLE_OPENAI_API) {
 				// get url and idx

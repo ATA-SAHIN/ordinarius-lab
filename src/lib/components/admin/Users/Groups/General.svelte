@@ -5,13 +5,13 @@
 
 	const i18n = getContext('i18n');
 
-	export let name = '';
-	export let color = '';
-	export let description = '';
-	export let data = {};
+	export let name: string = '';
+	export let color: string = '';
+	export let description: string = '';
+	export let data: Record<string, any> = {};
 
-	export let edit = false;
-	export let onDelete: Function = () => {};
+	export let edit: boolean = false;
+	export let onDelete: () => void = () => {};
 </script>
 
 <div class="flex gap-2">
@@ -80,8 +80,9 @@
 					class="text-sm bg-transparent outline-hidden rounded-lg px-2"
 					value={data?.config?.share ?? 'members'}
 					on:change={(e) => {
-						const value = e.target.value;
-						let shareValue;
+						const target = e.target as HTMLSelectElement;
+						const value = target.value;
+						let shareValue: boolean | string;
 						if (value === 'false') {
 							shareValue = false;
 						} else if (value === 'true') {
