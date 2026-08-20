@@ -1,6 +1,6 @@
 # Ordinarius Lab
 
-Open WebUI fork used in **MPRA-IDE** / **Kale OS** for expert pipeline management.
+Open WebUI fork used in **MPRA-IDE** for expert pipeline management.
 
 - Paper (Ontario Tech Scholaris): https://ontariotechu.scholaris.ca/items/d357a2fb-3a12-4f14-8e62-c7f4d4d8ea9f
 - IDE (Code-OSS fork): https://github.com/ATA-SAHIN/mpra-ide
