@@ -1,3 +1,15 @@
+# Ordinarius Lab
+
+Open WebUI fork used in **MPRA-IDE** / **Kale OS** for expert pipeline management.
+
+- Paper (Ontario Tech Scholaris): https://ontariotechu.scholaris.ca/items/d357a2fb-3a12-4f14-8e62-c7f4d4d8ea9f
+- IDE (Code-OSS fork): https://github.com/ATA-SAHIN/mpra-ide
+- Extension (Continue.dev fork): https://github.com/ATA-SAHIN/ordinarius-extension
+
+This is not the upstream Open WebUI product. Remainder of this file is the Open WebUI README.
+
+---
+
 # Open WebUI 👋
 
 ![GitHub stars](https://img.shields.io/github/stars/open-webui/open-webui?style=social)
